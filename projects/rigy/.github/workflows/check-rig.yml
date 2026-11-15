@@ -1,0 +1,114 @@
+name: Validate animated rig prototype
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/check-rig.yml
+      - index-app.js
+      - anatomy/**
+      - index.html
+      - rigy/animated/**
+      - rigy/controls/**
+      - tests/**
+      - models/standing-idle/manifest.json
+      - models/standing-idle/Image_0.jpg
+permissions:
+  contents: read
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify source FBX and original Zelda
+        run: |
+          python3 VERIFY_BACKUP.py
+          python3 tests/verify_animated_fbx.py
+          python3 tests/reconstruct_fbx.py
+      - name: Verify script syntax and model loading
+        run: |
+          node --check index-app.js
+          node --check rigy/animated/model-bundle.js
+          node --check rigy/animated/animation-pins.js
+          node --check rigy/animated/pelvis-pose-engine.js
+          node --check rigy/animated/pelvis-pose-math.mjs
+          node --test tests/pelvis-pose-math.test.mjs
+          node --test tests/pole-circle.test.mjs
+          node --check rigy/controls/physics-grab.js
+          node --check rigy/controls/grip-scale.mjs
+          node --test tests/two-grip-scale.test.mjs
+          node --test tests/model-loader.test.mjs
+          node --test tests/shoulder-envelope.test.mjs
+          node --test tests/torso-collision.test.mjs
+          node --test tests/hip-envelope.test.mjs
+          node --check anatomy/torso-collision.mjs
+          node --check anatomy/hip-envelope.mjs
+          node --check anatomy/shoulder-envelope.mjs
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct exact source FBX for local preview
+        run: python3 tests/reconstruct_fbx.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install test browser
+        run: |
+          npm install --no-save playwright@1.65.0
+          npx playwright install --with-deps chromium
+      - name: Verify only exact JPEG atlas with unlit geometry and no shadows
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/rigy-finish.log 2>&1 &
+          sleep 3
+          node tests/reference-finish-browser.test.mjs
+      - name: Verify knee medical hinge limits in animation and controller drags
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/knee-anatomy.log 2>&1 &
+          sleep 3
+          node tests/knee-anatomy-browser.test.mjs
+      - name: Lateral knee and elbow grab regression (both directions)
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/rigy-lateral.log 2>&1 &
+          sleep 3
+          node tests/lateral-knee-elbow-browser.test.mjs
+      - name: Pelvis-centred pose, fixed 4 endpoints and reduced animation
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/rigy-pelvis-v141.log 2>&1 &
+          sleep 3
+          node tests/pelvis-pose-browser.test.mjs
+      - name: Test all 12 grab points via trigger and desktop selection
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/rigy-grab-points.log 2>&1 &
+          sleep 3
+          node tests/all-grab-points-browser.test.mjs
+      - name: Test pelvis edits preserve 4 endpoint anchors with small animated offsets
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/rigy-pelvis.log 2>&1 &
+          sleep 3
+          node tests/pelvis-endpoint-browser.test.mjs
+      - name: Test hip and soft tissue restrictions on actual rigged FBX
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/rigy-hip.log 2>&1 &
+          sleep 3
+          node tests/hip-browser.test.mjs
+      - name: Test absolute bone rotation limits override animation and saved poses
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/rigy-hard-joints.log 2>&1 &
+          sleep 3
+          node tests/hard-joint-limits-browser.test.mjs
+      - name: Guard both unpinned arms throughout the animation
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/rigy-safety.log 2>&1 &
+          sleep 3
+          node tests/continuous-arm-safety-browser.test.mjs
+      - name: Smoke test actual browser loading, animation and persistent pose
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/rigy-http.log 2>&1 &
+          sleep 3
+          node tests/browser-smoke.mjs
+      - name: Smoke test temporary HTTPS CDN preview as a headset fallback
+        continue-on-error: true
+        run: |
+          RIGY_URL='https://raw.githack.com/kuke2013-hub/rigy/main/index.html?rigy_test=1' node tests/browser-smoke.mjs

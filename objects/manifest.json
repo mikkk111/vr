@@ -11,7 +11,7 @@
     },
     {
       "id": "zelda-v13-template",
-      "title": "Zelda v13 — VR Objects Template",
+      "title": "Zelda v13 \u2014 VR Objects Template",
       "url": "./shared/zelda-v13/",
       "modelPath": null,
       "description": "Model-free mixed-reality controller environment.",
@@ -23,7 +23,7 @@
       "url": "./projects/london-flat/",
       "modelPath": null,
       "description": "Apartment walkthrough and version archive.",
-      "status": "pending"
+      "status": "copied"
     },
     {
       "id": "rigy",
@@ -31,7 +31,31 @@
       "url": "./projects/rigy/",
       "modelPath": null,
       "description": "Anatomical character manipulation and animated rig experiments.",
-      "status": "pending"
+      "status": "copied"
+    },
+    {
+      "id": "girl-blender",
+      "title": "Girl Blender",
+      "url": "./projects/rigy/objects/girl-blender/",
+      "modelPath": "./projects/rigy/models/girl-blender/gilr_blender_small_textured.glb",
+      "description": "Original textured Blender GLB.",
+      "status": "copied"
+    },
+    {
+      "id": "laying-breathless",
+      "title": "Laying Breathless",
+      "url": "./projects/rigy/objects/laying-breathless/",
+      "modelPath": "./projects/rigy/models/laying-breathless/asset.json",
+      "description": "Original animated rig, texture and binary model chunks.",
+      "status": "copied"
+    },
+    {
+      "id": "anatomy-experiment",
+      "title": "VRPOD Anatomy Experiment",
+      "url": "./projects/rigy/VRPOD_ANATOMY_EXPERIMENT/",
+      "modelPath": null,
+      "description": "Independent anatomical manipulation experiment.",
+      "status": "copied"
     }
   ]
 }

@@ -1,0 +1,694 @@
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createGrabPhysics } from './rigy/controls/physics-grab.js?v=rigy-1.3.5';
+import { PelvisPoseEngine } from './rigy/animated/pelvis-pose-engine.js?v=rigy-1.5.6';
+import { loadBundledFbx } from './rigy/animated/model-bundle.js?v=rigy-0.3';
+import { OBJECT_CONFIG } from './VR_OBJECTS_TEMPLATE/config.js?v=template-1';
+
+const $ = (id) => document.getElementById(id);
+const setStatus = (message) => { $('status').textContent = message; };
+const stage = $('scene');
+const scene = new THREE.Scene(); // Transparency is required for passthrough.
+const renderer = new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.setClearColor(0x000000,0);
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1,1.5));
+renderer.setSize(innerWidth,innerHeight);
+renderer.xr.enabled = true;
+renderer.xr.setReferenceSpaceType('local-floor');
+renderer.shadowMap.enabled = false;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.appendChild(renderer.domElement);
+
+const rig = new THREE.Group();scene.add(rig);
+const camera = new THREE.PerspectiveCamera(65,innerWidth/innerHeight,0.01,50000);
+camera.position.set(0,1.65,2.65);rig.add(camera);
+const controls = new OrbitControls(camera,renderer.domElement);
+controls.target.set(0,0.75,-1.85);
+controls.enableDamping = true;
+controls.minDistance=.65;controls.maxDistance=50000;
+controls.maxPolarAngle=Math.PI*.55;
+controls.update();
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x859ba3,2));
+const key=new THREE.DirectionalLight(0xfff5e6,2.1);
+key.position.set(-2,4.7,2.5);
+key.castShadow=true;
+key.shadow.mapSize.set(1024,1024);
+key.shadow.camera.left=-5;key.shadow.camera.right=5;
+key.shadow.camera.top=5;key.shadow.camera.bottom=-5;
+key.shadow.normalBias=.02;
+scene.add(key);
+
+// Model-independent anchor: no Zelda, mesh or other 3D object is bundled.
+const modelAnchor=new THREE.Group();
+modelAnchor.position.set(0,1,-2);
+scene.add(modelAnchor);
+let avatar=null,physics=null,modelSize=null;
+let mixer=null,posePins=null,clip=null,animationPaused=false;
+let modelLoading=false;
+const animationSpeedEl=$('animationSpeed');
+const animationInfluenceEl=$('animationInfluence');
+animationInfluenceEl.addEventListener('input',()=>posePins?.setAnimationInfluence(Number(animationInfluenceEl.value)/100));
+const showHandlesEl=$('showHandles');
+const medicalProfilesPromise=fetch(new URL('./anatomy/medical-joints.v1.json',import.meta.url)).then(r=>{if(!r.ok)throw new Error('Medical reference data unavailable');return r.json();}).then(data=>data.profiles);
+async function installAnimation(root, clips){
+  posePins?.destroy(); posePins=null;
+  mixer?.stopAllAction();mixer=null;clip=null;
+  if(!Array.isArray(clips)||!clips.length){
+    setStatus('Rig loaded but has no animation clips. Try another FBX/GLB.');return;
+  }
+  clip=clips[0];
+  mixer=new THREE.AnimationMixer(root);
+  const action=mixer.clipAction(clip);
+  action.setLoop(THREE.LoopRepeat,Infinity);
+  action.play();
+  mixer.setTime(0);root.updateMatrixWorld(true);
+  try{
+    const medicalProfiles=await medicalProfilesPromise;
+    if(avatar!==root)return;
+    posePins=new PelvisPoseEngine({avatar:root,renderer,camera,controls,medicalProfiles,onStatus:setStatus});
+    posePins.setVisible(showHandlesEl.checked);
+    posePins.setAnimationInfluence(Number(animationInfluenceEl.value)/100);
+    setStatus(`Playing ${clip.name || 'Idle'} (${clip.duration.toFixed(2)} s). Bring a controller within 30 cm of a joint to reveal its point; hold trigger and MOVE that point in 3D. Release to pin; animation continues.`);
+  }catch(error){console.warn('Rig pin setup failed',error);setStatus(`Animation running, but posing is unavailable: ${error.message}`);}
+}
+$('resetPose').addEventListener('click',()=>{posePins?.reset();setStatus('All limb pins cleared. Original animation continues.');});
+$('pause').addEventListener('click',()=>{animationPaused=!animationPaused;$('pause').textContent=animationPaused?'Resume animation':'Pause animation';setStatus(animationPaused?'Animation paused; pose pins retained.':'Animation playing; pose pins retained.');});
+showHandlesEl.addEventListener('change',()=>posePins?.setVisible(showHandlesEl.checked));
+
+const physicsReady=createGrabPhysics({renderer,rig,modelAnchor,onStatus:setStatus})
+  .then(instance=>{
+    physics=instance;
+    if(modelSize)physics.attachModel(modelSize);
+  })
+  .catch(error=>{
+    console.error('Physics initialisation failed',error);
+    setStatus('Physics initialisation failed: '+error.message);
+  });
+const glbLoader=new GLTFLoader();
+const objLoader=new OBJLoader();
+const fbxLoader=new FBXLoader();
+const featuredRig=window.RIGY_FEATURED_RIG||null;
+let featuredAtlas=null;
+// Optional per-character surface; original mesh, skin, UVs and bind skeleton are untouched.
+function applyFeaturedAtlas(root,texture){
+  if(!featuredRig||!texture)return;
+  texture.colorSpace=THREE.SRGBColorSpace;
+  root.traverse(part=>{
+    if(!part.isMesh||!part.geometry?.attributes?.uv)return;
+    const apply=material=>{
+      const revised=(material?.isMaterial?material.clone():new THREE.MeshPhongMaterial());
+      revised.name='Laying Breathless source atlas';
+      if(revised.color)revised.color.set(0xffffff);
+      revised.map=texture;
+      revised.needsUpdate=true;
+      return revised;
+    };
+    part.material=Array.isArray(part.material)?part.material.map(apply):apply(part.material);
+  });
+}
+
+
+/** RIGY-V0158: the original user-supplied Image_0 JPEG is the ONLY rendered
+ * surface on the featured FBX. No ambient shading, metallic shine, shadow,
+ * vertex colours, wireframe, added lines, lighting or ACES tone mapping.
+ * Original UVs, skinning, pose controls and source materials are preserved.
+ */
+const FEATURED_JPEG_URL='./models/standing-idle/Image_0.jpg?v=rigy-1.5.8';
+function applyJpegAtlasOnly(root,texture){
+ const image=texture?.image;
+ if(image?.width!==2048||image?.height!==2048)
+   throw new Error('Original 2048 × 2048 JPEG atlas is missing or damaged');
+ texture.colorSpace=THREE.SRGBColorSpace;
+ texture.flipY=true; // Match FBXLoader's TextureLoader convention.
+ texture.needsUpdate=true;
+ let applied=0,uvMeshes=0,missingUV=0;
+ root.traverse(part=>{
+   if(part.isLine||part.isPoints){part.visible=false;return;}
+   if(!part.isMesh)return;
+   const original=part.material;
+   part.userData.rigySourceMaterial=original;
+   const uv=part.geometry?.getAttribute('uv');
+   if(uv?.count)uvMeshes++;else missingUV++;
+   const basic=()=>new THREE.MeshBasicMaterial({
+     name:'Image_0_JPEG_only',color:0xffffff,map:texture,
+     toneMapped:false,transparent:false,opacity:1,wireframe:false,
+     fog:false,side:THREE.DoubleSide
+   });
+   part.material=Array.isArray(original)?original.map(basic):basic();
+   part.castShadow=false;part.receiveShadow=false;
+   applied++;
+ });
+ if(!applied||!uvMeshes)throw new Error('Original FBX has no UV-mapped renderable meshes');
+ root.userData.rigyReferenceFinish={
+   name:'Image_0.jpg',applied,uvMeshes,missingUV,unlit:true,
+   shadows:false,textureWidth:2048,textureHeight:2048,
+   reversible:true,sourceTexturesPreserved:true
+ };
+ return root.userData.rigyReferenceFinish;
+}
+
+function installObject(root,label='Object',clips=[]) {
+  if(!root || !root.isObject3D)throw new Error('The imported file has no Three.js scene.');
+  // Compute from a detached root; do not inherit any previous anchor rotation.
+  root.updateMatrixWorld(true);
+  const raw=new THREE.Box3().setFromObject(root);
+  if(raw.isEmpty())throw new Error('The imported object has no renderable geometry.');
+  const rawSize=raw.getSize(new THREE.Vector3());
+  const longest=Math.max(rawSize.x,rawSize.y,rawSize.z);
+  if(!Number.isFinite(longest)||longest<1e-7)throw new Error('Invalid object bounds.');
+  if(OBJECT_CONFIG.fitToView) {
+    // Uniform scaling only; never stretch the object or change proportions.
+    const target=Number(OBJECT_CONFIG.targetLongestSideMetres)||1.67;
+    root.scale.multiplyScalar(target/longest);
+    root.updateMatrixWorld(true);
+  }
+  const bounds=new THREE.Box3().setFromObject(root);
+  const centre=bounds.getCenter(new THREE.Vector3());
+  const dimensions=bounds.getSize(new THREE.Vector3());
+  if(posePins){posePins.destroy();posePins=null;}
+  if(avatar)modelAnchor.remove(avatar);
+  avatar=root;
+  root.position.sub(centre);
+  if(featuredRig&&featuredAtlas)applyFeaturedAtlas(root,featuredAtlas);
+  root.traverse(part=>{
+    if(part.isMesh){part.castShadow=false;part.receiveShadow=false;}
+  });
+  modelAnchor.add(root);
+  modelAnchor.scale.setScalar(1);
+  modelAnchor.rotation.set(0,Number(OBJECT_CONFIG.initialYawRadians)||0,0);
+  modelAnchor.position.set(0,Math.max(0.4,Math.min(1.6,dimensions.y/2)),-2);
+  modelSize=dimensions;
+  if(physics)physics.attachModel(modelSize);
+  installAnimation(root,clips).catch(error=>{console.error(error);setStatus('Animation/pose setup failed: '+error.message);});
+  setStatus(label+' loaded. Preserved Zelda side grips move the model; joint markers activate once animation is ready.');
+}
+function loadObject(url,filename) {
+  const extension=(filename.split(/[?#]/)[0].split('.').pop()||'').toLowerCase();
+  const revoke=url.startsWith('blob:');
+  const done=loaded=>{
+    try{installObject(loaded.scene||loaded,filename,loaded.animations||loaded.scene?.animations||[]);}
+    catch(error){console.error(error);setStatus('Object import failed: '+error.message);}
+    finally{if(revoke)URL.revokeObjectURL(url);}
+  };
+  const failed=error=>{
+    console.error('Object import failed',error);
+    setStatus('Object import failed. Use a self-contained GLB for reliable textures and materials.');
+    if(revoke)URL.revokeObjectURL(url);
+  };
+  setStatus('Loading '+filename+'…');
+  if(extension==='glb'||extension==='gltf')glbLoader.load(url,done,undefined,failed);
+  else if(extension==='obj')objLoader.load(url,done,undefined,failed);
+  else if(extension==='fbx')fbxLoader.load(url,done,undefined,failed);
+  else failed(new Error('Unsupported extension '+extension+'. Convert to GLB.'));
+}
+async function loadFeaturedRig(){
+  if(modelLoading)return;modelLoading=true;
+  try{
+    if(featuredRig){
+      const modelURL=new URL(featuredRig.assetUrl,location.href);
+      // Source FBX is preserved byte-for-byte in fixed-size GitHub Pages chunks.
+      // GitHub's Git API stored each binary blob independently; reassemble in original order.
+      // The full-source SHA-256 below is checked before the loader touches the geometry.
+      let binary;
+      if(featuredRig.chunkCount && featuredRig.chunkBaseUrl){
+        const chunkBase=new URL(featuredRig.chunkBaseUrl,location.href);
+        const parts=new Array(featuredRig.chunkCount);
+        let nextChunk=0,received=0,finished=0;
+        const worker=async()=>{
+          while(nextChunk<parts.length){
+            const i=nextChunk++;
+            const chunkURL=new URL('part-'+String(i).padStart(3,'0')+'.bin',chunkBase);
+            const response=await fetch(chunkURL);
+            if(!response.ok)throw new Error('Source FBX chunk '+i+' HTTP '+response.status);
+            const part=new Uint8Array(await response.arrayBuffer());
+            if(!part.byteLength)throw new Error('Source FBX chunk '+i+' is empty');
+            parts[i]=part;
+            received+=part.byteLength;
+            setStatus('Loading original character: '+(++finished)+'/'+parts.length+' pieces ('+(received/1048576).toFixed(1)+' MiB)…');
+          }
+        };
+        await Promise.all(Array.from({length:Math.min(4,parts.length)},()=>worker()));
+        const combined=new Uint8Array(received);
+        let offset=0;
+        for(const part of parts){
+          if(!part)throw new Error('A source FBX chunk was not downloaded');
+          combined.set(part,offset);offset+=part.byteLength;
+        }
+        binary=combined.buffer;
+      }else{
+        const response=await fetch(modelURL,{cache:'no-cache'});
+        if(!response.ok)throw new Error('FBX asset HTTP '+response.status);
+        binary=await response.arrayBuffer();
+      }
+      if(binary.byteLength!==featuredRig.bytes)throw new Error('FBX size mismatch');
+      const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',binary));
+      const actual=[...hash].map(x=>x.toString(16).padStart(2,'0')).join('');
+      if(actual!==featuredRig.sha256)throw new Error('FBX SHA-256 mismatch');
+      setStatus('Parsing original Mixamo rig, skin weights and animation…');
+      // Featured GLBs are loaded through the same Rigy joint-pose overlay as FBX.
+      // Keep the original Zelda whole-object controller and imported GLB data untouched.
+      if(/\.glb$/i.test(modelURL.pathname)){
+        const parsed=await new Promise((resolve,reject)=>
+          glbLoader.parse(binary,new URL('./',modelURL).href,resolve,reject));
+        // The source animation straightens both elbows almost exactly; floating-point
+        // rounding makes the left rest bend -0.00004 degrees. Permit only that
+        // numerical tolerance, not negative anatomical elbow movement.
+        parsed.scene.userData.rigyNearStraightHingeToleranceRad=0.00001;
+        installObject(parsed.scene,featuredRig.title||'Character',parsed.animations||[]);
+        return;
+      }
+      const root=fbxLoader.parse(binary,new URL('./',modelURL).href);
+      if(featuredRig.textureUrl){
+        try{featuredAtlas=await new THREE.TextureLoader().loadAsync(new URL(featuredRig.textureUrl,location.href).href);}
+        catch(error){console.warn('Texture atlas unavailable',error);}
+      }
+      installObject(root,featuredRig.title||'Character',root.animations||[]);
+    }else{
+      const binary=await loadBundledFbx('models/standing-idle/manifest.json',(count,total,bytes)=>{
+        setStatus(`Loading character: part ${count}/${total} (${(bytes/1048576).toFixed(2)} MiB transferred)…`);
+      });
+      setStatus('Parsing rig, mesh and all animation tracks…');
+      const root=fbxLoader.parse(binary,'./models/standing-idle/');
+      const jpeg=await new THREE.TextureLoader().loadAsync(FEATURED_JPEG_URL);
+    applyJpegAtlasOnly(root,jpeg);
+      installObject(root,'Standing W_Briefcase Idle.fbx',root.animations||[]);
+    }
+  }catch(error){console.error(error);setStatus(`Automatic model import failed: ${error.message}. Select the original FBX locally (and the JPEG texture if needed).`);}
+  finally{modelLoading=false;}
+}
+loadFeaturedRig();
+
+// An optional manual atlas picker exists on the isolated Laying Breathless page.
+$('textureFile')?.addEventListener('change',async event=>{
+  const file=event.target.files?.[0];
+  if(!file||!featuredRig)return;
+  if(!file.type.startsWith('image/')){setStatus('Choose the original JPEG texture atlas.');return;}
+  const uri=URL.createObjectURL(file);
+  try{
+    featuredAtlas=await new THREE.TextureLoader().loadAsync(uri);
+    if(avatar)applyFeaturedAtlas(avatar,featuredAtlas);
+    setStatus('Source texture atlas applied to the skinned character.');
+  }catch(error){console.error(error);setStatus('Texture failed to load: '+error.message);}
+  finally{URL.revokeObjectURL(uri);}
+});
+$('assetFile').addEventListener('change',event=>{
+  const file=event.target.files?.[0];
+  if(!file)return;
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(!['glb','obj','fbx'].includes(ext)){
+    setStatus('Please choose a .glb, .obj or .fbx file. GLB is recommended.');
+    return;
+  }
+  loadObject(URL.createObjectURL(file),file.name);
+});
+
+// No virtual floor, gravity, collision geometry, grid or stage.
+
+// Controllers and their side-grip events are registered in physics-grab.js.
+const keys = new Set();
+window.addEventListener('keydown', e => {keys.add(e.code); if(e.code.startsWith('Arrow'))e.preventDefault();});
+window.addEventListener('keyup', e => keys.delete(e.code));
+window.addEventListener('blur', () => keys.clear());
+const xrForward=new THREE.Vector3(),xrRight=new THREE.Vector3();
+const xrHeadOrientation=new THREE.Quaternion(),xrRigOrientation=new THREE.Quaternion();
+const xrLocalHead=new THREE.Vector3(),xrPivotBefore=new THREE.Vector3(),xrPivotAfter=new THREE.Vector3();
+const xrViewerWorld=new THREE.Vector3();
+const UP=new THREE.Vector3(0,1,0);
+let snapTurnReady=true;
+const HOME={x:0,z:0};
+function activeStick(gamepad) {
+  const axes=gamepad.axes||[];
+  const pair=(x,y)=>Number.isFinite(axes[x])&&Number.isFinite(axes[y])?{x:axes[x],y:axes[y]}:null;
+  const main=pair(2,3),fallback=pair(0,1);
+  if(main&&(Math.abs(main.x)>.12||Math.abs(main.y)>.12)) return main;
+  if(fallback&&(Math.abs(fallback.x)>.12||Math.abs(fallback.y)>.12))return fallback;
+  return main||fallback||{x:0,y:0};
+}
+function snapTurn(direction, viewerPose){
+  // Preserve physical head position when rotating the locomotion rig.
+  const pos=viewerPose.transform.position;
+  xrLocalHead.set(pos.x,pos.y,pos.z);
+  rig.updateMatrixWorld(true);
+  xrPivotBefore.copy(xrLocalHead);rig.localToWorld(xrPivotBefore);
+  rig.rotation.y-=direction*THREE.MathUtils.degToRad(30);
+  rig.updateMatrixWorld(true);
+  xrPivotAfter.copy(xrLocalHead);rig.localToWorld(xrPivotAfter);
+  rig.position.x+=xrPivotBefore.x-xrPivotAfter.x;
+  rig.position.z+=xrPivotBefore.z-xrPivotAfter.z;
+}
+function updateXR(dt, frame){
+  const session=renderer.xr.getSession();
+  const space=renderer.xr.getReferenceSpace();
+  const pose=frame&&space?frame.getViewerPose(space):null;
+  if(!session||!pose)return;
+  let left=null,right=null;
+  for(const source of session.inputSources){
+    if(!source.gamepad)continue;
+    const stick=activeStick(source.gamepad);
+    if(source.handedness==='left') left=stick;
+    if(source.handedness==='right') right=stick;
+  }
+  // A held controller's stick rotates object, not the player.
+  // When that grip is released, the usual locomotion/snap-turn controls resume.
+  if(right && !physics?.isHolding('right')){
+    if(Math.abs(right.x)<.30) snapTurnReady=true;
+    if(snapTurnReady&&Math.abs(right.x)>.70){snapTurn(right.x>0?1:-1,pose);snapTurnReady=false;}
+  } else if(right) {
+    snapTurnReady=true; // Re-arm the view control while object is being held.
+  }
+  // Version 10: both vertical sticks still pull/push the CHARACTER, never
+  // move the player. Left-stick X now translates the CHARACTER sideways too,
+  // even during a left grip. The right-stick X logic above stays unchanged:
+  // free = view snap-turn, right grip = object 30° yaw.
+  const side=left && Math.abs(left.x)>.16?left.x:0;
+  const leftDepth=left && Math.abs(left.y)>.16?left.y:0;
+  const rightDepth=right && Math.abs(right.y)>.16?right.y:0;
+  const modelDepth=Math.abs(rightDepth)>=Math.abs(leftDepth)?rightDepth:leftDepth;
+  if(!physics || (!modelDepth&&!side))return;
+  const eye=pose.transform.position;
+  xrViewerWorld.set(eye.x,eye.y,eye.z);
+  rig.updateMatrixWorld(true);
+  rig.localToWorld(xrViewerWorld);
+  if(modelDepth)physics.adjustModelDepth(modelDepth,dt,xrViewerWorld);
+  if(side) {
+    const o=pose.transform.orientation;
+    xrHeadOrientation.set(o.x,o.y,o.z,o.w);
+    rig.getWorldQuaternion(xrRigOrientation);
+    xrHeadOrientation.premultiply(xrRigOrientation);
+    xrRight.set(1,0,0).applyQuaternion(xrHeadOrientation);
+    xrRight.y=0;
+    if(xrRight.lengthSq()>1e-6) {
+      xrRight.normalize();
+      physics.adjustModelSide(side,dt,xrRight);
+    }
+  }
+}
+function updateDesktop(dt){
+  const forward=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0);
+  const strafe=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0);
+  const len=Math.hypot(forward,strafe);
+  if(!len)return;
+  const cameraForward=new THREE.Vector3();camera.getWorldDirection(cameraForward);cameraForward.y=0;cameraForward.normalize();
+  const cameraRight=new THREE.Vector3().crossVectors(cameraForward,UP).normalize();
+  const speed=(keys.has('ShiftLeft')?3:1.5)*dt/len;
+  rig.position.addScaledVector(cameraForward,forward*speed);
+  rig.position.addScaledVector(cameraRight,strafe*speed);
+  controls.target.addScaledVector(cameraForward,forward*speed);
+  controls.target.addScaledVector(cameraRight,strafe*speed);
+}
+function resetView(){
+  rig.position.set(HOME.x,0,HOME.z);rig.rotation.y=0;snapTurnReady=true;
+  if(!renderer.xr.isPresenting){camera.position.set(0,1.65,2.65);controls.target.set(0,.75,-1.85);controls.update();}
+  posePins?.reset();
+  physics?.reset();
+  setStatus('Rigy 1.4.1 reset. Side grips grab the character; both grips resize linearly from 10% to 350%.');
+}
+$('reset').addEventListener('click',resetView);
+
+const enter=$('enterAR');
+let arSupported=false;
+if(!window.isSecureContext){enter.textContent='HTTPS REQUIRED';setStatus('Open the secure GitHub Pages URL, not a local file.');}
+else if(!navigator.xr){enter.textContent='OPEN ON QUEST 3';setStatus('Desktop preview is available. Passthrough requires Meta Quest Browser with WebXR AR support.');}
+else{
+  navigator.xr.isSessionSupported('immersive-ar').then(supported=>{
+    arSupported=supported;enter.disabled=!supported;
+    enter.textContent=supported?'ENTER PASSTHROUGH':'PASSTHROUGH UNAVAILABLE';
+    if(!supported)setStatus('This browser does not offer immersive-ar. Open the site in Meta Quest Browser and allow the required permissions.');
+  }).catch(error=>{enter.textContent='PASSTHROUGH CHECK FAILED';setStatus(error.message);});
+}
+enter.addEventListener('click',async()=>{
+  if(!arSupported)return;
+  enter.disabled=true;
+  try{
+    const session=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['local-floor']});
+    await renderer.xr.setSession(session);
+    controls.enabled=false;
+    camera.position.set(0,0,0); // Never reuse the desktop orbit offset in XR.
+    enter.textContent='PASSTHROUGH ACTIVE';
+    physics?.releaseAll();
+    setStatus('Bring either controller close (30 cm) to a joint to reveal its edit point. Hold trigger and move wrist, ankle, elbow, knee, head, neck, torso or hips; feet remain anchored. Side grips move the whole character.');
+  }catch(error){console.error(error);enter.textContent='RETRY PASSTHROUGH';setStatus(`Could not start AR: ${error.name}: ${error.message}`);}
+  finally{enter.disabled=false;}
+});
+renderer.xr.addEventListener('sessionend',()=>{
+  controls.enabled=true;
+  camera.position.set(0,1.65,2.65);
+  controls.target.set(0,.75,-1.85); controls.update();
+  enter.textContent='ENTER PASSTHROUGH';
+  setStatus('Passthrough session ended. Desktop preview active.');
+});
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+// Read-only runtime diagnostics allow the automated browser smoke test to
+// distinguish "source files uploaded" from an actually running animated rig.
+window.__rigyDiagnostics = () => ({
+  ready: !!(avatar && mixer && posePins),
+  pelvisPose:posePins?.pelvisDiagnostics?.()||null,
+  wholeCharacterGrip:physics?.getDebugState?.()||null,
+  characterLoaded: !!avatar,
+  animationClip: clip?.name || null,
+  animationDuration: clip?.duration || 0,
+  animationTime: mixer?.time || 0,
+  skeletonBones: avatar ? (() => {let n=0;avatar.traverse(o=>{if(o.isBone)n++;});return n;})() : 0,
+  handleCount: posePins?.handles?.size || 0,
+  shoulderDiagnostics: posePins?.shoulderDiagnostics?.()||null,
+  endpointAnchors: posePins?.endpointDiagnostics?.()||null,
+  bodyAnchorMode: posePins?.bodyAnchorMode||false,
+  armSolveTrace: posePins?.lastBodyArmSolve||null,
+   hipDiagnostics: posePins?.hipDiagnostics?.()||null,
+  footErrors: posePins?.footErrors?.()||null,
+  footReach: posePins?.footReachDiagnostics?.()||null,
+  plantedFeet: posePins?.footAnchors?.size||0,
+  footErrors: posePins?.footErrors?.()||null,
+  footReach: posePins?.footReachDiagnostics?.()||null,
+  plantedFeet: posePins?.footAnchors?.size||0,
+  visibleHandleCount: posePins?[...posePins.handles.values()].filter(m=>m.visible).length:0,
+  activeJoint: posePins?.active?.limb?.id || null,
+  pinnedCount: posePins?.pins?.size || 0,
+  status: $('status').textContent,
+  vrPresenting: renderer.xr.isPresenting
+});
+// Test-only desktop hook; not exposed in the standard public UI.
+if(new URLSearchParams(location.search).has('rigy_test')) {
+  window.__rigyTestPin = (id, offset) => {
+    if(!posePins)throw new Error('Pose solver not ready');
+    if(!Array.isArray(offset)||offset.length!==3||offset.some(x=>!Number.isFinite(x)))
+      throw new Error('Finite XYZ offset required');
+    const limb=posePins.limbs.find(x=>x.id===id&&x.kind==='effector');
+    if(!limb)throw new Error('No effector named '+id);
+    limb.effector.updateWorldMatrix(true,false);
+    const target=limb.effector.getWorldPosition(new THREE.Vector3())
+      .add(new THREE.Vector3(...offset));
+    posePins.storeTarget(limb,target);
+    return {target:target.toArray(),pinCount:posePins.pins.size};
+  };
+  // Direct anatomical overhead target. Unlike global XYZ offsets, this
+  // requests a known 160° total elevation in the current moving torso frame.
+  window.__rigyTestOverhead=(id,elevation=160,plane='forward')=>{
+    if(!posePins||!Number.isFinite(elevation)||elevation<0||elevation>180)
+      throw new Error('Invalid shoulder test');
+    const limb=posePins.limbs.find(l=>l.id===id&&l.kind==='effector'&&l.kindName==='elbow');
+    if(!limb)throw new Error('Arm joint missing: '+id);
+    avatar.updateMatrixWorld(true);
+    const p=limb.shoulderContext;
+    const world=b=>b.getWorldPosition(new THREE.Vector3());
+    const up=world(p.spine).sub(world(p.hips)).normalize();
+    const left=world(p.leftShoulder).sub(world(p.rightShoulder));
+    left.addScaledVector(up,-left.dot(up)).normalize();
+    const forward=left.clone().cross(up).normalize();
+    const a=THREE.MathUtils.degToRad(elevation);
+    const tangent=plane==='lateral'?left.multiplyScalar(limb.side==='left'?1:-1):forward;
+    const direction=up.multiplyScalar(-Math.cos(a)).addScaledVector(tangent,Math.sin(a)).normalize();
+    const shoulder=world(limb.upper),elbow=world(limb.hinge),wrist=world(limb.effector);
+    const maxReach=shoulder.distanceTo(elbow)+elbow.distanceTo(wrist);
+    const goal=shoulder.clone().addScaledVector(direction,maxReach*0.98);
+    posePins.storeTarget(limb,goal);posePins.update();
+    return {id,plane,elevation,goal:goal.toArray(),reach:maxReach};
+  };
+  // Browser regression: emulate a controller's physical translation while
+  // preserving its grab's initial world position. The public page has no hook.
+  window.__rigyTestControllerDrag=(id,offset) => {
+    if(!posePins)throw new Error('Pose solver not ready');
+    const limb=[...posePins.limbs,...posePins.bodyHandles].find(l=>l.id===id);
+    if(!limb)throw new Error('No handle: '+id);
+    if(!Array.isArray(offset)||offset.length!==3||offset.some(x=>!Number.isFinite(x)))throw new Error('Finite XYZ offset required');
+    avatar.updateMatrixWorld(true);
+    const handle=posePins.handles.get(id);
+    const before=handle.getWorldPosition(new THREE.Vector3());
+    const fake=new THREE.Group();
+    fake.position.copy(before).add(new THREE.Vector3(0.015,0,0));
+    scene.add(fake);fake.updateWorldMatrix(true,false);
+    const nearest=posePins.pickNearby(fake);
+    if(nearest?.id!==id)throw new Error('Controller failed to select '+id+'; found '+nearest?.id);
+    posePins.begin(limb,fake);
+    fake.position.add(new THREE.Vector3(...offset));
+    fake.updateWorldMatrix(true,false);
+    posePins.update();
+    posePins.release(fake);
+    scene.remove(fake);
+    avatar.updateWorldMatrix(true,true);
+    const after=handle.getWorldPosition(new THREE.Vector3());
+    const pin=posePins.pins.get(id);
+    const goal=pin?.targetLocal?limb.reference.localToWorld(pin.targetLocal.clone()):null;
+    return {id,kind:limb.kind,before:before.toArray(),after:after.toArray(),
+      goal:goal?.toArray()||null,moved:before.distanceTo(after),
+      deviation:goal?after.distanceTo(goal):null,pinCount:posePins.pins.size};
+  };
+  window.__rigyTestJumpAnimation = time => {
+    if(!posePins||!mixer||!Number.isFinite(time))throw new Error('No running animated rig');
+    posePins.prepareAnimationFrame?.();
+    mixer.setTime(time);
+    posePins.captureSourceAnimation?.();
+    posePins.update();
+    return window.__rigyDiagnostics();
+  };
+  window.__rigyTestTorsoTarget = id=>{
+    if(!posePins)throw new Error('Pose solver not ready');
+    const limb=posePins.limbs.find(l=>l.id===id&&l.kind==='effector'&&l.kindName==='elbow');
+    if(!limb)throw new Error('Unknown arm '+id);
+    const b=limb.shoulderContext;
+    const center=b.leftShoulder.getWorldPosition(new THREE.Vector3())
+      .add(b.rightShoulder.getWorldPosition(new THREE.Vector3())).multiplyScalar(.5);
+    // Intentionally aim a hand at the middle of the upper chest.
+    center.lerp(b.hips.getWorldPosition(new THREE.Vector3()),.32);
+    posePins.storeTarget(limb,center);
+    posePins.update();
+    return {goal:center.toArray(),shoulder:posePins.shoulderDiagnostics()[id]};
+  };
+
+  // Test-only: force an unpinned arm into the torso to validate final guard.
+  window.__rigyTestInjectUnsafeArm=side=>{
+    if(!posePins||!mixer||!['left','right'].includes(side))throw new Error('Unknown arm');
+    posePins.reset();mixer.setTime(3.2);posePins.update();
+    const limb=posePins.limbs.find(x=>x.id===side+'-wrist');
+    limb.lastSafeArm=null;
+    const world=b=>b.getWorldPosition(new THREE.Vector3());
+    const ctx=limb.shoulderContext;
+    const chest=world(ctx.leftShoulder).add(world(ctx.rightShoulder))
+      .multiplyScalar(.5).lerp(world(ctx.hips),.45);
+    const origin=world(limb.upper);
+    const change=new THREE.Quaternion().setFromUnitVectors(
+      world(limb.hinge).sub(origin).normalize(),chest.sub(origin).normalize());
+    const current=limb.upper.getWorldQuaternion(new THREE.Quaternion());
+    const parent=limb.upper.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+    limb.upper.quaternion.copy(parent.multiply(change.multiply(current)));
+    avatar.updateMatrixWorld(true);
+    const before=posePins.shoulderDiagnostics()[limb.id];
+    posePins.update();
+    return {before,after:posePins.shoulderDiagnostics()[limb.id]};
+  };
+
+  // Test-only: inject impossible bone rotation into a raw animation sample or
+  // into a saved pose lock. Both must be rejected by the same final guard.
+  window.__rigyTestIllegalJoint=(side,part,pinned=false)=>{
+   if(!posePins||!mixer||!['left','right'].includes(side)||
+     !['shoulder-twist','elbow-swing','clavicle'].includes(part))
+    throw new Error('Invalid joint probe');
+   posePins.reset();mixer.setTime(3.2);posePins.update();
+   const limb=posePins.limbs.find(l=>l.id===side+'-wrist');
+   if(pinned){
+    posePins.storeTarget(limb,limb.effector.getWorldPosition(new THREE.Vector3()));
+    posePins.update();
+   }
+   const bone=part==='shoulder-twist'?limb.upper:
+     part==='elbow-swing'?limb.hinge:limb.clavicle;
+   const axis=part==='shoulder-twist'?limb.shoulderAxisLocal.clone():
+     part==='elbow-swing'?new THREE.Vector3(1,0,0)
+        .addScaledVector(limb.hingeAxisLocal,-limb.hingeAxisLocal.x).normalize():
+        new THREE.Vector3(1,0,1).normalize();
+   if(axis.lengthSq()<.01)axis.set(0,1,0).addScaledVector(
+     limb.hingeAxisLocal,-limb.hingeAxisLocal.y).normalize();
+   bone.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(axis,
+     THREE.MathUtils.degToRad(175)));
+   if(pinned){
+    const lock=posePins.armPoseLocks.get(side);
+    // This pelvis-first solver uses persistent positional anchors, not
+    // the legacy saved arm quaternion lock. Inject illegal user rotation
+    // whether or not there is an old-style pose lock to update.
+    if(lock){
+     lock.clavicle.copy(limb.clavicle.quaternion);
+     lock.upper.copy(limb.upper.quaternion);
+     lock.hinge.copy(limb.hinge.quaternion);
+    }
+   }
+   avatar.updateMatrixWorld(true);
+   const before=posePins.shoulderDiagnostics()[limb.id];
+   posePins.update();
+   return {before,after:posePins.shoulderDiagnostics()[limb.id]};
+  };
+
+  // Tests Quest-style trigger start, controller motion, release, and
+  // concrete marker movement. This DOES NOT bypass the handle selection.
+  window.__rigyTestActualGrip=(id,offset)=>{
+    if(!posePins||!posePins.handles.has(id))throw new Error('Missing handle '+id);
+    if(!Array.isArray(offset)||offset.length!==3||offset.some(v=>!Number.isFinite(v)))
+      throw new Error('Invalid controller motion');
+    posePins.reset();mixer.setTime(1.0);posePins.update();
+    const marker=posePins.handles.get(id),before=marker.getWorldPosition(new THREE.Vector3());
+    const fake=new THREE.Group();fake.position.copy(before);
+    scene.add(fake);fake.updateMatrixWorld(true,false);
+    posePins.onControllerStart(fake);
+    const selected=posePins.active?.limb?.id||null;
+    fake.position.add(new THREE.Vector3(...offset));fake.updateMatrixWorld(true,false);
+    posePins.update();avatar.updateMatrixWorld(true);
+    const after=marker.getWorldPosition(new THREE.Vector3());
+    const pinned=posePins.pins.has(id);
+    posePins.release(fake);scene.remove(fake);
+    return {id,selected,pinned,moved:before.distanceTo(after),
+      before:before.toArray(),after:after.toArray(),kind:marker.userData.poseHandle.kind};
+  };
+  window.__rigyTestHandleScreen=id=>{
+    if(!posePins||!posePins.handles.has(id))throw new Error('Unknown marker '+id);
+    avatar.updateMatrixWorld(true);camera.updateWorldMatrix(true);
+    const rect=renderer.domElement.getBoundingClientRect();
+    const p=posePins.handles.get(id).getWorldPosition(new THREE.Vector3()).project(camera);
+    return {x:rect.left+(p.x+1)*rect.width/2,y:rect.top+(1-p.y)*rect.height/2,z:p.z};
+  };
+  // Test-only: read the actual joint position; not just the controller target.
+  window.__rigyTestHandleWorld=id=>{
+   if(!posePins?.handles.has(id))throw new Error('Unknown handle '+id);
+   return posePins.handles.get(id).getWorldPosition(new THREE.Vector3()).toArray();
+  };
+  window.__rigyReferenceFinish=()=>avatar?.userData.rigyReferenceFinish||null;
+  window.__rigyAtlasMaterialReport=()=>{
+    const report={meshes:0,unlitMeshes:0,atlasMeshes:0,uvMeshes:0,
+      shadowMeshes:0,nonJpegMaterials:0};
+    avatar?.traverse(part=>{
+      // The 12 separate edit-handle meshes are controls, not FBX surfaces.
+      if(!part.isMesh||!Object.prototype.hasOwnProperty.call(part.userData,'rigySourceMaterial'))return;
+      report.meshes++;
+      if(part.geometry?.getAttribute('uv')?.count)report.uvMeshes++;
+      const mats=Array.isArray(part.material)?part.material:[part.material];
+      if(mats.length&&mats.every(m=>m.isMeshBasicMaterial&&
+        m.toneMapped===false&&m.wireframe===false&&m.color.getHex()===0xffffff))
+        report.unlitMeshes++;
+      if(mats.length&&mats.every(m=>m.map?.image?.width===2048&&
+        m.map?.image?.height===2048))report.atlasMeshes++;
+      if(mats.some(m=>!m.isMeshBasicMaterial||!m.map))report.nonJpegMaterials++;
+      if(part.castShadow||part.receiveShadow)report.shadowMeshes++;
+    });
+    return report;
+  };
+  window.__rigyTestReset=()=>posePins?.reset();
+}
+let previous=0;
+renderer.setAnimationLoop((time,frame)=>{
+  const dt=previous?Math.min(.05,(time-previous)/1000):0;
+  previous=time;
+  if(renderer.xr.isPresenting) {
+    physics?.pollGrips(); // Resolve grip before routing thumbstick actions.
+    updateXR(dt,frame);
+  } else {updateDesktop(dt);controls.update();}
+  physics?.update(dt);
+  posePins?.prepareAnimationFrame?.();
+  if(mixer && !animationPaused) mixer.update(dt*Math.max(0.01,Number(animationSpeedEl.value)||1));
+  posePins?.captureSourceAnimation?.();
+  if(posePins) posePins.update(); // CRITICAL: after mixer; animation cannot overwrite pinned pose
+  renderer.render(scene,camera);
+});

@@ -1,0 +1,29 @@
+{
+  "id": "laying-breathless",
+  "title": "Laying Breathless",
+  "format": "FBX-binary",
+  "model": "laying-breathless.fbx",
+  "texture": "laying-breathless.jpg",
+  "originalModelName": "Laying Breathless.fbx",
+  "originalTextureName": "Laying Breathless.jpg",
+  "bytes": 28177072,
+  "sha256": "3bc1818136bba47dc54ce838ed120276def9cbed6949f8da3f360565fc77457b",
+  "textureSha256": "925150f8e0c9fd05d4b3ec449508bf9ca8ef781b943e1f81335e20f4663985f0",
+  "boneCount": 65,
+  "skinClusters": 52,
+  "controlPoints": 304203,
+  "polygons": 337401,
+  "trianglesAfterFan": 608406,
+  "animationDurationSeconds": 0.8333333333333334,
+  "publicationStatus": "original-source-published-in-27-lossless-binary-chunks",
+  "notes": "Both original 28,177,072-byte FBX and 494,343-byte JPEG are GitHub-hosted unchanged. Binary FBX is stored in 27 contiguous parts for GitHub API transport, not as a standalone file. The viewer downloads, reassembles, SHA-256 verifies and parses the original FBX. Real Quest 3 compatibility and joint deformation remain to be hardware tested.",
+  "delivery": {
+    "method": "ordered-binary-chunks",
+    "basePath": "chunks/",
+    "chunkNamePattern": "part-NNN.bin",
+    "chunkCount": 27,
+    "chunkSizeBytes": 1048576,
+    "finalChunkBytes": 914096,
+    "checksum": "original full-file SHA-256 verified by browser before parsing"
+  }
+}

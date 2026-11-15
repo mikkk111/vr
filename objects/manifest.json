@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "objects": [
+    {
+      "id": "hotel",
+      "title": "Hotel VR",
+      "url": "./projects/hotel/",
+      "modelPath": "./projects/hotel/assets/hotel.gltf",
+      "description": "Original hotel walkthrough, with its geometry, textures and locomotion.",
+      "status": "copied"
+    },
+    {
+      "id": "zelda-v13-template",
+      "title": "Zelda v13 — VR Objects Template",
+      "url": "./shared/zelda-v13/",
+      "modelPath": null,
+      "description": "Model-free mixed-reality controller environment.",
+      "status": "copied"
+    },
+    {
+      "id": "london-flat",
+      "title": "London Flat VR",
+      "url": "./projects/london-flat/",
+      "modelPath": null,
+      "description": "Apartment walkthrough and version archive.",
+      "status": "pending"
+    },
+    {
+      "id": "rigy",
+      "title": "Rigy",
+      "url": "./projects/rigy/",
+      "modelPath": null,
+      "description": "Anatomical character manipulation and animated rig experiments.",
+      "status": "pending"
+    }
+  ]
+}

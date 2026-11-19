@@ -11,7 +11,7 @@
     },
     {
       "id": "zelda-v13-template",
-      "title": "Zelda v13 \u2014 VR Objects Template",
+      "title": "Zelda v13 — VR Objects Template",
       "url": "./shared/zelda-v13/",
       "modelPath": null,
       "description": "Model-free mixed-reality controller environment.",
@@ -56,6 +56,14 @@
       "modelPath": null,
       "description": "Independent anatomical manipulation experiment.",
       "status": "copied"
+    },
+    {
+      "id": "trellis-20261119-171451",
+      "title": "Trellis 3D — 19 November 2026",
+      "url": "./objects/trellis-20261119-171451/",
+      "modelPath": "./objects/trellis-20261119-171451/assets/trellis_20261119-171451-380206.glb",
+      "description": "Original textured Trellis 3D model in the Zelda v13 Quest 3 passthrough environment.",
+      "status": "pending"
     }
   ]
 }

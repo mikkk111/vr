@@ -4,7 +4,7 @@ import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGrabPhysics } from '../../shared/zelda-v13/physics-grab.js?v=template-1';
-import { createOrcIKPose } from './pose-ik.js?v=orc-ik-2';
+import { createOrcIKPose } from './pose-ik.js?v=orc-ik-3';
 import { OBJECT_CONFIG } from './config.js?v=orc-1';
 
 const $ = (id) => document.getElementById(id);

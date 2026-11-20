@@ -69,9 +69,9 @@
       "id": "paintable2",
       "title": "Paintable2",
       "url": "./objects/paintable2/",
-      "modelPath": "./objects/paintable2/assets/Paintable2.glb",
-      "description": "Original textured Paintable2 GLB in the Zelda v13 Quest 3 passthrough environment.",
-      "status": "ready"
+      "modelPath": "./objects/paintable2/assets/Paintable2-rigged.glb",
+      "description": "24-bone skinned Paintable2 humanoid, independently poseable wrists, elbows, ankles, knees, head and spine; Zelda v13 whole-object passthrough controls preserved.",
+      "status": "pending-rig-publication"
     }
   ]
 }

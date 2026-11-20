@@ -4,7 +4,8 @@ import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGrabPhysics } from '../../shared/zelda-v13/physics-grab.js?v=template-1';
-import { OBJECT_CONFIG } from './config.js?v=paintable2-1';
+import { OBJECT_CONFIG } from './config.js?v=paintable2-rig-1';
+import { createPaintablePose } from './pose-controls.js?v=paintable2-rig-1';
 
 const $ = (id) => document.getElementById(id);
 const setStatus = (message) => { $('status').textContent = message; };
@@ -47,7 +48,7 @@ scene.add(key);
 const modelAnchor=new THREE.Group();
 modelAnchor.position.set(0,1,-2);
 scene.add(modelAnchor);
-let avatar=null,physics=null,modelSize=null;
+let avatar=null,physics=null,modelSize=null,poseLayer=null;
 const physicsReady=createGrabPhysics({renderer,rig,modelAnchor,onStatus:setStatus})
   .then(instance=>{
     physics=instance;
@@ -57,6 +58,7 @@ const physicsReady=createGrabPhysics({renderer,rig,modelAnchor,onStatus:setStatu
     console.error('Physics initialisation failed',error);
     setStatus('Physics initialisation failed: '+error.message);
   });
+let poseEnabled=true;
 const glbLoader=new GLTFLoader();
 const objLoader=new OBJLoader();
 const fbxLoader=new FBXLoader();
@@ -78,6 +80,7 @@ function installObject(root,label='Object') {
   const bounds=new THREE.Box3().setFromObject(root);
   const centre=bounds.getCenter(new THREE.Vector3());
   const dimensions=bounds.getSize(new THREE.Vector3());
+  poseLayer?.dispose(); poseLayer=null;
   if(avatar)modelAnchor.remove(avatar);
   avatar=root;
   root.position.sub(centre);
@@ -85,6 +88,18 @@ function installObject(root,label='Object') {
     if(part.isMesh){part.castShadow=false;part.receiveShadow=false;}
   });
   modelAnchor.add(root);
+  modelAnchor.updateMatrixWorld(true);
+  try {
+    poseLayer=createPaintablePose({renderer,scene,avatar:root,camera,onStatus:setStatus});
+    poseLayer.setDesktopDragging(dragging=>{controls.enabled=!dragging&&!renderer.xr.isPresenting;});
+    poseLayer.setEnabled(poseEnabled);
+    $('poseMode').disabled=false;
+    $('resetPose').disabled=false;
+  } catch(error) {
+    console.warn('Limb pose controls unavailable for this model:',error.message);
+    $('poseMode').disabled=true;
+    $('resetPose').disabled=true;
+  }
   modelAnchor.scale.setScalar(1);
   modelAnchor.rotation.set(0,Number(OBJECT_CONFIG.initialYawRadians)||0,0);
   modelAnchor.position.set(0,Math.max(0.4,Math.min(1.6,dimensions.y/2)),-2);
@@ -127,6 +142,14 @@ $('assetFile').addEventListener('change',event=>{
   }
   loadObject(URL.createObjectURL(file),file.name);
 });
+
+$('poseMode').addEventListener('click',()=>{
+  poseEnabled=!poseEnabled;
+  poseLayer?.setEnabled(poseEnabled);
+  $('poseMode').textContent=poseEnabled?'Pose limbs: ON':'Pose limbs: OFF';
+  setStatus(poseEnabled?'Pose ON: Quest trigger selects joints. Side grips still move the whole model.':'Pose OFF: Zelda v13 whole-model controls remain available.');
+});
+$('resetPose').addEventListener('click',()=>poseLayer?.resetPose());
 
 // No virtual floor, gravity, collision geometry, grid or stage.
 
@@ -226,7 +249,8 @@ function resetView(){
   rig.position.set(HOME.x,0,HOME.z);rig.rotation.y=0;snapTurnReady=true;
   if(!renderer.xr.isPresenting){camera.position.set(0,1.65,2.65);controls.target.set(0,.75,-1.85);controls.update();}
   physics?.reset();
-  setStatus('Template 1.0 reset. Left X moves object sideways, either Y pulls/pushes. Two-hand resizing is 10% to 350%.');
+  poseLayer?.resetPose();
+  setStatus('Paintable2 rig reset. Left X moves object sideways, either Y pulls/pushes. Two-hand resizing is 10% to 350%.');
 }
 $('reset').addEventListener('click',resetView);
 
@@ -272,5 +296,6 @@ renderer.setAnimationLoop((time,frame)=>{
     updateXR(dt,frame);
   } else {updateDesktop(dt);controls.update();}
   physics?.update(dt);
+  poseLayer?.update();
   renderer.render(scene,camera);
 });

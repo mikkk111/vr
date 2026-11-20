@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#131b22">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
-  <title>Paintable2 · Quest 3 Mixed Reality</title>
+  <title>Paintable2 Rigged — Quest 3 Limb Posing</title>
   <style>
     :root{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark}
     *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101a23}
@@ -35,16 +35,16 @@
 <body>
   <div id="scene"></div>
   <section id="panel">
-    <div class="eyebrow">Quest 3 / Paintable2</div>
+    <div class="eyebrow">Quest 3 / Paintable2 · Rigged 1.0</div>
     <h1>Paintable2 <span style="color:#86e8d4">VR</span></h1>
     <div class="versionline"><strong>Zelda VR v13 controller engine</strong> · Paintable2 model</div>
-    <div class="sub">Transparent passthrough, fixed position on release, no virtual floor or gravity. Your textured Paintable2 loads automatically.</div>
+    <div class="sub">Transparent passthrough, fixed position on release, no virtual floor or gravity. Your rigged, textured Paintable2 loads automatically. Use the trigger near wrists, elbows, knees or ankles to pose limbs.</div>
     <button id="enterAR" class="primary" type="button" disabled>CHECKING QUEST SUPPORT…</button>
-    <div class="controls"><button id="reset" type="button">Reset view and object</button></div>
+    <div class="controls"><button id="reset" type="button">Reset view and object</button><button id="poseMode" type="button">Pose limbs: ON</button></div><div class="controls"><button id="resetPose" type="button">Reset limbs</button></div>
     <div id="status" role="status">Loading Paintable2 model…</div>
     <label id="filelabel" for="assetFile">Choose GLB, OBJ or FBX from device</label>
     <input id="assetFile" type="file" accept=".glb,.obj,.fbx,model/gltf-binary">
-    <div class="hint"><strong>Quest controller mapping</strong>
+    <div class="hint"><strong>Limb posing:</strong> with Pose limbs ON, use the Quest trigger to select cyan hands/feet, amber elbows/knees, or purple torso/head joints. Move the selected controller, release trigger to retain the pose. Desktop: hover over a joint, then drag. <strong>Side grips are unchanged.</strong><br><br><strong>Quest controller mapping</strong>
       <br><strong>Grip:</strong> aim the Quest target ray at the object and squeeze to grab nearby or remotely; the second grip joins the hold.
       <br><strong>Move:</strong> position either held controller UP/DOWN/LEFT/RIGHT; distant manipulation uses both hand displacement and aiming direction.
       <br><strong>Twist:</strong> wrist rotation controls object orientation, including right-hand pitch and roll in two-hand mode.
@@ -57,6 +57,6 @@
     </div>
   </section>
   <div id="footer">PAINTABLE2 · Quest 3 passthrough · Zelda v13 controls</div>
-  <script type="module" src="./app.js?v=paintable2-1"></script>
+  <script type="module" src="./app.js?v=paintable2-rig-1"></script>
 </body>
 </html>

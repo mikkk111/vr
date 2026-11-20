@@ -4,7 +4,7 @@ import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGrabPhysics } from '../../shared/zelda-v13/physics-grab.js?v=template-1';
-import { createOrcPose } from './pose-controls.js?v=orc-1';
+import { createOrcIKPose } from './pose-ik.js?v=orc-ik-2';
 import { OBJECT_CONFIG } from './config.js?v=orc-1';
 
 const $ = (id) => document.getElementById(id);
@@ -55,7 +55,6 @@ function setPlaying(v){
   $('toggleAnimation').disabled=!action;
   $('toggleAnimation').textContent=playing?'Pause animation':'Play animation';
 }
-function pauseAnimation(){if(playing && action)setPlaying(false);}
 function selectedJoint({name,hinge,limits,values}){
   $('jointSelect').value=name;
   for(let i=0;i<3;i++){
@@ -118,8 +117,8 @@ function installObject(root,label='Object') {
   modelAnchor.add(root);
   // Source bones are captured before the FBX animation mixer starts.
   try{
-    poseLayer=createOrcPose({renderer,scene,root,camera,onStatus:setStatus,
-      onPoseStart:pauseAnimation,onSelection:selectedJoint});
+    poseLayer=createOrcIKPose({renderer,scene,root,camera,onStatus:setStatus,
+      onSelection:selectedJoint});
     poseLayer.setDesktopDragging(d=>{controls.enabled=!d&&!renderer.xr.isPresenting;});
     poseLayer.setEnabled(poseEnabled);
     $('poseMode').disabled=false;$('resetPose').disabled=false;
@@ -148,7 +147,7 @@ function installObject(root,label='Object') {
   modelAnchor.position.set(0,Math.max(0.4,Math.min(1.6,dimensions.y/2)),-2);
   modelSize=dimensions;
   if(physics)physics.attachModel(modelSize);
-  setStatus(label+' loaded. '+(poseLayer?.boneCount||0)+' bones, '+(poseLayer?.jointCount||0)+' joint controls, '+clips.length+' animation clip(s). Side GRIP moves character, TRIGGER poses joints.');
+  setStatus(label+' loaded. '+(poseLayer?.boneCount||0)+' bones, '+(poseLayer?.ikTargetNames?.length||0)+' moveable IK targets, '+clips.length+' animation clip(s). Pull hand/foot/head joint markers to reposition the limbs while the idle animation CONTINUES.');
 }
 function loadObject(url,filename) {
   const extension=(filename.split(/[?#]/)[0].split('.').pop()||'').toLowerCase();
@@ -301,7 +300,7 @@ function resetView(){
   if(!renderer.xr.isPresenting){camera.position.set(0,1.65,2.65);controls.target.set(0,.75,-1.85);controls.update();}
   physics?.reset();poseLayer?.resetPose();
   if(action){action.reset().play();mixer?.update(0);setPlaying(true);}
-  setStatus('Orc reset. Zelda v13 grips unchanged; trigger joints remain angle-limited.');
+  setStatus('Orc reset. Animations continue normally; IK targets and joint offsets cleared.');
 }
 $('reset').addEventListener('click',resetView);
 
@@ -326,7 +325,7 @@ enter.addEventListener('click',async()=>{
     camera.position.set(0,0,0); // Never reuse the desktop orbit offset in XR.
     enter.textContent='PASSTHROUGH ACTIVE';
     physics?.releaseAll();
-    setStatus('Orc VR: side GRIPS move/scale, controller TRIGGERS select bones, wrist rotations pose joints.');
+    setStatus('Orc VR: squeeze SIDE GRIPS to move whole model, use TRIGGER to select green IK handles and move wrists/ankles/head in space. Idle animation continues.');
   }catch(error){console.error(error);enter.textContent='RETRY PASSTHROUGH';setStatus(`Could not start AR: ${error.name}: ${error.message}`);}
   finally{enter.disabled=false;}
 });
@@ -347,7 +346,9 @@ renderer.setAnimationLoop((time,frame)=>{
     updateXR(dt,frame);
   } else {updateDesktop(dt);controls.update();}
   physics?.update(dt);
-  // Clip first, bounded bone offsets after. Paused mixer still restores pose.
+  // Reestablish authored base rig (including unkeyed bones), sample the
+  // running clip, then overlay bounded IK targets. Never pause for posing.
+  poseLayer?.prepareFrame();
   if(mixer)mixer.update(playing?dt*Number($('animationSpeed').value):0);
   poseLayer?.update();
   renderer.render(scene,camera);

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#131b22">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <title>Orc Idle · Rigged character · Quest 3 mixed reality</title>
+  <style>
+    :root{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark}
+    *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101a23}
+    body{background:radial-gradient(ellipse at 50% 55%,#475663 0%,#1d2d38 45%,#0b131c 100%)}
+    #scene{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}
+    #panel{position:absolute;z-index:3;top:clamp(12px,3vw,28px);left:clamp(12px,3vw,28px);width:min(350px,calc(100% - 24px));background:#101821e8;border:1px solid #ffffff23;border-radius:17px;padding:19px;box-shadow:0 20px 50px #0006;backdrop-filter:blur(18px)}
+    .eyebrow{color:#81d6c6;font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase}
+    .versionline{margin:-1px 0 10px;color:#95d6c6;font-size:12px;line-height:1.4}
+    .versionline a{color:#b6e9d8;text-decoration:underline;text-underline-offset:3px}
+    .versionline strong{color:#e6f9f3;font-weight:700}
+    h1{font-size:26px;line-height:1.1;margin:7px 0 7px;letter-spacing:-.025em}
+    .sub{font-size:13px;color:#acbfcc;line-height:1.5;margin-bottom:15px}
+    .primary{width:100%;border:0;border-radius:11px;font-size:15px;font-weight:750;padding:14px 12px;color:#102223;background:#86e8d4;cursor:pointer;touch-action:manipulation}
+    .primary:disabled{opacity:.5;cursor:not-allowed}
+    .controls{display:flex;gap:8px;margin-top:9px}
+    .controls button{flex:1;background:#233442;color:#e7f5f5;border:1px solid #ffffff2b;border-radius:9px;padding:10px 5px;cursor:pointer}
+    #status{margin:12px 0 6px;color:#d3e1e8;font-size:12px;line-height:1.5;min-height:34px;overflow-wrap:anywhere}
+    #filelabel{display:block;font-size:12px;color:#84d8c8;margin-top:8px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}#assetFile{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+    .hint{margin:11px 0 0;border-top:1px solid #ffffff20;padding-top:10px;color:#a3b9c8;font-size:12px;line-height:1.55}
+    .kbd{border:1px solid #ffffff40;border-radius:4px;font-size:10px;padding:1px 4px;color:#e6f7fc}
+    #footer{position:fixed;z-index:2;bottom:15px;left:50%;transform:translateX(-50%);background:#091720bb;border:1px solid #ffffff18;padding:9px 14px;border-radius:11px;color:#c1d0d6;white-space:nowrap;font-size:12px;pointer-events:none}
+    #panel{max-height:calc(100dvh - 30px);overflow:auto;scrollbar-width:thin}
+    #filelabel{font-weight:750;text-align:center;background:#e4a967;color:#211811;text-decoration:none;border-radius:11px;padding:12px;margin:10px 0}
+    #jointEditor{margin-top:11px;border-top:1px solid #ffffff25;padding-top:10px}
+    #jointEditor[hidden],#clipRow[hidden],.angle-row[hidden]{display:none}
+    .angle-row{display:grid;grid-template-columns:70px 1fr 40px;gap:7px;align-items:center;margin:7px 0;color:#d7e4ec;font-size:12px}
+    .angle-row input{width:100%;accent-color:#86e8d4}
+    .angle-row output{text-align:right;font-variant-numeric:tabular-nums}
+    #jointSelect,#animationClip{min-width:0;width:100%;background:#223543;color:#e7f3f7;border:1px solid #ffffff36;border-radius:8px;padding:8px;margin:7px 0}
+    .control-row{display:flex;gap:9px;align-items:center;margin:10px 0;color:#c4d5e0;font-size:12px}
+    .control-row input{accent-color:#86e8d4}
+    .control-row label{flex:0 0 auto}
+    .control-row input[type=range]{width:100%}
+    .controls button:disabled{opacity:.45}
+    @media(max-width:600px){#panel{padding:14px}h1{font-size:21px}.sub{margin-bottom:9px}#footer{font-size:10px;bottom:8px}}
+  </style>
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"}}</script>
+</head>
+<body>
+  <div id="scene"></div>
+  <section id="panel">
+    <div class="eyebrow">Meta Quest 3 · Orc Idle · Rigged character editor</div>
+    <h1>Orc Idle <span style="color:#86e8d4">VR</span></h1>
+    <div class="versionline"><strong>Zelda VR v13 grips preserved</strong> · New bounded Mixamo joint editor</div>
+    <div class="sub">Upload your own rigged FBX directly from this browser. Play its original animation, then select shoulders, elbows, wrists, fingers, neck, hips, knees or ankles and pose them within restricted angles. No model is stored or uploaded to the website.</div>
+    <button id="enterAR" class="primary" type="button" disabled>CHECKING QUEST SUPPORT…</button>
+    <label id="filelabel" for="assetFile">UPLOAD YOUR FBX / GLB FROM THIS DEVICE</label>
+    <input id="assetFile" type="file" accept=".fbx,.glb,model/gltf-binary">
+    <div class="controls">
+      <button id="reset" type="button">Reset view + character</button>
+      <button id="toggleAnimation" type="button" disabled>Play animation</button>
+    </div>
+    <div id="clipRow" hidden><label for="animationClip" class="sub">Animation clip</label><select id="animationClip"></select></div>
+    <div class="control-row"><label for="animationSpeed">Playback speed</label><input id="animationSpeed" type="range" min="0.1" max="2" step="0.1" value="1"></div>
+    <div class="controls">
+      <button id="poseMode" type="button" disabled>Joint editing: ON</button>
+      <button id="resetPose" type="button" disabled>Reset joints</button>
+    </div>
+    <div id="jointEditor" hidden>
+      <div class="control-row"><label for="jointSelect">Selected bone</label><select id="jointSelect" aria-label="Select character joint"></select></div>
+      <div class="angle-row" id="jointRow0"><label for="angle0" id="angleLabel0">Pitch</label><input id="angle0" type="range" min="-30" max="30" step="1" value="0"><output id="angleValue0">0°</output></div>
+      <div class="angle-row" id="jointRow1"><label for="angle1" id="angleLabel1">Yaw</label><input id="angle1" type="range" min="-30" max="30" step="1" value="0"><output id="angleValue1">0°</output></div>
+      <div class="angle-row" id="jointRow2"><label for="angle2" id="angleLabel2">Roll</label><input id="angle2" type="range" min="-30" max="30" step="1" value="0"><output id="angleValue2">0°</output></div>
+      <div class="control-row"><input type="checkbox" id="showHandles" checked><label for="showHandles">Show selectable joint points</label></div>
+    </div>
+    <div id="status" role="status">Waiting for your FBX file…</div>
+    
+    <div class="hint"><strong>Pose a joint:</strong> tap a coloured point using the Quest TRIGGER, hold the trigger and twist your wrist to bend the selected bone. Release the trigger to hold the pose. In desktop preview, click a point and drag, or use the bone selector and constrained angle sliders. Manual posing pauses the imported animation; resume it with Play.
+      <br><strong>Hinge limits:</strong> elbows, knees, index fingers and toes rotate around one anatomically guided axis. Other joints have separate pitch/yaw/roll limits. Body collision and medically exact IK are not simulated.
+      <br><strong>Missing joints:</strong> this FBX only supplies index-finger chains, not separately articulated thumbs or other fingers.
+      <br><br><strong>Quest controller mapping</strong>
+      <br><strong>Grip:</strong> aim the Quest target ray at the object and squeeze to grab nearby or remotely; the second grip joins the hold.
+      <br><strong>Move:</strong> position either held controller UP/DOWN/LEFT/RIGHT; distant manipulation uses both hand displacement and aiming direction.
+      <br><strong>Twist:</strong> wrist rotation controls object orientation, including right-hand pitch and roll in two-hand mode.
+      <br><strong>Resize:</strong> both grips together, spread/close hands, linear 10%–350%.
+      <br><strong>Left thumbstick X:</strong> move the object left/right even when unheld.
+      <br><strong>Either thumbstick Y:</strong> pull object closer or push farther, held or unheld.
+      <br><strong>Right thumbstick X:</strong> rotate held object 30°; without right grip, turn view 30°.
+      <br><strong>Release:</strong> model freezes where placed; zero gravity or momentum.
+      <br><br><strong>Desktop:</strong> drag to orbit, scroll to zoom, WASD to navigate.
+    </div>
+  </section>
+  <div id="footer">ORC IDLE · Local FBX upload · Original Zelda v13 grips · Bounded joints</div>
+  <script type="module" src="./app.js?v=orc-1"></script>
+</body>
+</html>

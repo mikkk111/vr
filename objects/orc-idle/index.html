@@ -51,8 +51,9 @@
     <div class="eyebrow">Meta Quest 3 · Orc Idle · Rigged character editor</div>
     <h1>Orc Idle <span style="color:#86e8d4">IK v2</span></h1>
     <div class="versionline"><strong>Live animation + spatial limb dragging</strong> · Original Zelda v13 grips preserved</div>
-    <div class="sub">Import your rigged Orc FBX. Move the HAND, FOOT, ELBOW, KNEE and HEAD markers through 3D space; joints bend to follow your controller within restricted angles. The original idle animation keeps playing throughout.</div>
+    <div class="sub">The Orc FBX loads automatically from GitHub. If necessary, click LOAD ORC FROM GITHUB to retry. Move HAND, FOOT, ELBOW, KNEE and HEAD markers through 3D space; joints bend to follow your controller within restricted angles. The original idle animation keeps playing throughout.</div>
     <button id="enterAR" class="primary" type="button" disabled>CHECKING QUEST SUPPORT…</button>
+    <div class="controls"><button id="loadHosted" type="button">LOAD ORC FROM GITHUB</button></div>
     <label id="filelabel" for="assetFile">UPLOAD YOUR FBX / GLB FROM THIS DEVICE</label>
     <input id="assetFile" type="file" accept=".fbx,.glb,model/gltf-binary">
     <div class="controls">
@@ -72,7 +73,7 @@
       <div class="angle-row" id="jointRow2"><label for="angle2" id="angleLabel2">Roll</label><input id="angle2" type="range" min="-30" max="30" step="1" value="0"><output id="angleValue2">0°</output></div>
       <div class="control-row"><input type="checkbox" id="showHandles" checked><label for="showHandles">Show selectable joint points</label></div>
     </div>
-    <div id="status" role="status">Waiting for your FBX file…</div>
+    <div id="status" role="status">Connecting to GitHub to load the rigged Orc FBX…</div>
     
     <div class="hint"><strong>MOVE A LIMB (GREEN points):</strong> aim your Quest controller at the hand, ankle, elbow, knee or head marker, HOLD the TRIGGER, then MOVE the controller in any direction (up/down, left/right, closer/farther). The limb follows the target through two-bone inverse kinematics. Release trigger to retain the new position while the idle animation continues.
       <br><strong>TWIST A JOINT (PURPLE / AMBER points):</strong> aim at another joint marker, squeeze TRIGGER and rotate the wrist; use the angle sliders in desktop mode.
@@ -93,6 +94,6 @@
     </div>
   </section>
   <div id="footer">ORC IDLE v2 · LIVE IDLE ANIMATION + SPATIAL IK · Zelda v13 grips unchanged</div>
-  <script type="module" src="./app.js?v=orc-autoload-1"></script>
+  <script type="module" src="./app.js?v=orc-autoload-2"></script>
 </body>
 </html>

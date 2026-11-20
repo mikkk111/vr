@@ -224,6 +224,15 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
       if(s.t){
         const goal=s.startGoal.clone().add(diff).addScaledVector(rayDiff,s.reach*.75);
         setTarget(s.t,goal);
+        // In addition to moving the entire arm/leg with IK, keep the v1
+        // ability to twist the selected wrist/ankle/head via controller roll.
+        const delta=a.quat.multiply(s.startQuat.clone().invert());
+        if(delta.angleTo(Q())>2*D){
+          const local=s.startBoneWorld.clone().invert().multiply(delta).multiply(s.startBoneWorld);
+          const e=new THREE.Euler().setFromQuaternion(local,'XYZ');
+          if(!s.j.hinge)setAngles(s.j,[s.startValues[0]+e.x/D,
+            s.startValues[1]+e.y/D,s.startValues[2]+e.z/D]);
+        }
       } else {
         const delta=a.quat.multiply(s.startQuat.clone().invert());
         const local=s.startBoneWorld.clone().invert().multiply(delta).multiply(s.startBoneWorld);

@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import {JOINT_LIMITS,keyOf,hingeAxis,boundedLocal,solveTwoBone,solveOneBone} from './ik-solver.js?v=orc-freepose-1';
+import {JOINT_LIMITS,keyOf,boundedLocal,solveTwoBone,solveOneBone} from './ik-solver.js?v=orc-unrestricted-1';
 
 // The authored FBX clip remains live. Each frame: restore the base rig,
 // evaluate AnimationMixer, then solve local-space IK target OFFSETS.
 // Controller triggers are independent of the unmodified Zelda v13 side grips.
 const D=Math.PI/180, V=()=>new THREE.Vector3(), Q=()=>new THREE.Quaternion();
 const at=bone=>bone.getWorldPosition(V());
-const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+// Free-bone posing: the solver and UI do not cap rotation angles.
 const IK_DEFS=[
   {name:'LeftHand',kind:'two',upper:'LeftArm',lower:'LeftForeArm'},
   {name:'RightHand',kind:'two',upper:'RightArm',lower:'RightForeArm'},
@@ -57,11 +57,7 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
   const joints=[];
   for(const [name,bone] of bones){
     const limits=JOINT_LIMITS[name];if(!limits)continue;
-    const hinge=!limits[1],parent=bone.parent?.isBone?bone.parent:null;
-    const next=bone.children.find(n=>n.isBone);
-    const axis=hinge && parent && next
-      ?hingeAxis(parent,bone,next,bodyRight)
-      :hinge?bodyRight.clone().applyQuaternion(bone.getWorldQuaternion(Q()).invert()).normalize():null;
+    const hinge=false,axis=null; // All joints are free on three axes.
     const isIK=IK_DEFS.some(d=>d.name===name);
     // NO visual spheres, markers or other overlay geometry is created.
     // Real skinned mesh surface is picked with a raycast instead.
@@ -104,8 +100,8 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
   }
   function choose(j){if(j){selected=j;notify();}}
   function setAngles(j,values){
-    for(let i=0;i<3;i++)if(j.limits[i]&&Number.isFinite(values[i]))
-      j.offsets[i]=clamp(values[i],j.limits[i][0],j.limits[i][1]);
+    for(let i=0;i<3;i++)if(Number.isFinite(values[i]))
+      j.offsets[i]=values[i]; // No angle limits.
     j.manual=true;
     if(j===selected)notify();
   }
@@ -114,18 +110,11 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
     if(!t)return;
     // The mixer has already evaluated the original unmodified animation.
     const desired=worldToRoot(worldPoint);
-    t.offset.copy(desired).sub(t.baseLocal).clampLength(0,2.0);
-  }
-  // Broad quaternion caps from the established rig editor; no additional
-  // tight per-axis limits constraining the target solver.
-  function maxAngles(bone){
-    const n=keyOf(bone);
-    if(/Arm/.test(n))return 160;
-    if(/UpLeg/.test(n))return 150;
-    if(/Leg/.test(n))return 155;
-    if(/Neck|Head/.test(n))return 80;
-    if(/Spine/.test(n))return 70;
-    return 160;
+    // FBX source units may be centimetres (or arbitrary scale).
+    // The old 2-local-unit cap made controller motion nearly invisible.
+    // Target translation is now unrestricted. Physical bone length is
+    // naturally handled by solveTwoBone in world coordinates.
+    t.offset.copy(desired).sub(t.baseLocal);
   }
   function applyTargets(){
     // All animated base joint positions were captured before solving.
@@ -133,8 +122,7 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
       if(t.offset.lengthSq()<1e-10)continue;
       const desired=root.localToWorld(t.baseLocal.clone().add(t.offset));
       if(t.kind==='one'){
-        solveOneBone({upper:t.upperBone,end:t.end,
-          opts:{bind:rest.get(t.upperBone),limit:maxAngles(t.upperBone)}},desired);
+        solveOneBone({upper:t.upperBone,end:t.end},desired);
       } else {
         const upper=t.upperBone,lower=t.lowerBone;
         // Legacy solver style: follow target with natural quaternion rotation.
@@ -142,9 +130,7 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
         // repositioning for FBX skeletons with unconventional local axes.
         solveTwoBone({
           upper,lower,end:t.end,
-          fallbackPole:t.fallback.clone().applyQuaternion(root.getWorldQuaternion(Q())),
-          upperOpts:{bind:rest.get(upper),limit:maxAngles(upper)},
-          lowerOpts:{bind:rest.get(lower),limit:maxAngles(lower)}
+          fallbackPole:t.fallback.clone().applyQuaternion(root.getWorldQuaternion(Q()))
         },desired);
       }
     }
@@ -153,14 +139,10 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
     for(const j of joints){
       if(!j.manual)continue;
       const o=j.offsets,b=j.bone;
-      const additive=j.hinge
-        ?Q().setFromAxisAngle(j.axis,o[0]*D)
-        :Q().setFromEuler(new THREE.Euler(o[0]*D,o[1]*D,o[2]*D,'XYZ'));
+      const additive=Q().setFromEuler(
+        new THREE.Euler(o[0]*D,o[1]*D,o[2]*D,'XYZ'));
       const desired=b.quaternion.clone().multiply(additive);
-      const name=j.name;
-      const cap=maxAngles(b);
-      b.quaternion.copy(boundedLocal(b,desired,
-        {bind:j.bind,limit:cap,axis:j.hinge?j.axis:null}));
+      b.quaternion.copy(boundedLocal(b,desired));
     }
     root.updateWorldMatrix(true,true);
   }
@@ -249,27 +231,18 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
       const diff=a.position.sub(s.startPos);
       const rayDiff=a.direction.sub(s.startDir);
       if(s.t){
+        // XR hand translation + remote pointing update the end effector
+        // directly; no local-coordinate travel limit.
         const goal=s.startGoal.clone().add(diff).addScaledVector(rayDiff,s.reach*.75);
         setTarget(s.t,goal);
-        // In addition to moving the entire arm/leg with IK, keep the v1
-        // ability to twist the selected wrist/ankle/head via controller roll.
-        const delta=a.quat.multiply(s.startQuat.clone().invert());
-        if(delta.angleTo(Q())>2*D){
-          const local=s.startBoneWorld.clone().invert().multiply(delta).multiply(s.startBoneWorld);
-          const e=new THREE.Euler().setFromQuaternion(local,'XYZ');
-          if(!s.j.hinge)setAngles(s.j,[s.startValues[0]+e.x/D,
-            s.startValues[1]+e.y/D,s.startValues[2]+e.z/D]);
-        }
-      } else {
-        const delta=a.quat.multiply(s.startQuat.clone().invert());
-        const local=s.startBoneWorld.clone().invert().multiply(delta).multiply(s.startBoneWorld);
-        if(s.j.hinge){
-          setAngles(s.j,[s.startValues[0]+angleAxis(local,s.j.axis),0,0]);
-        }else{
-          const e=new THREE.Euler().setFromQuaternion(local,'XYZ');
-          setAngles(s.j,[s.startValues[0]+e.x/D,
-            s.startValues[1]+e.y/D,s.startValues[2]+e.z/D]);
-        }
+      }
+      // Simultaneously allow arbitrary wrist/foot/head orientation.
+      const delta=a.quat.multiply(s.startQuat.clone().invert());
+      const local=s.startBoneWorld.clone().invert().multiply(delta).multiply(s.startBoneWorld);
+      if(delta.angleTo(Q())>1e-6){
+        const e=new THREE.Euler().setFromQuaternion(local,'XYZ');
+        setAngles(s.j,[s.startValues[0]+e.x/D,
+          s.startValues[1]+e.y/D,s.startValues[2]+e.z/D]);
       }
     }
   }
@@ -317,8 +290,7 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
       setTarget(s.t,desired);
     }else{
       const j=s.j,a=s.angles;
-      setAngles(j,j.hinge?[a[0]-dy*.5,0,0]:
-        [a[0]-dy*.32,a[1]+dx*.32,a[2]]);
+      setAngles(j,[a[0]-dy*.65,a[1]+dx*.65,a[2]]);
     }
     e.preventDefault();
   };

@@ -5,7 +5,7 @@ import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGrabPhysics } from '../../shared/zelda-v13/physics-grab.js?v=template-1';
 import { createOrcIKPose } from './pose-ik.js?v=orc-ik-3';
-import { OBJECT_CONFIG } from './config.js?v=orc-1';
+import { OBJECT_CONFIG } from './config.js?v=orc-autoload-1';
 
 const $ = (id) => document.getElementById(id);
 const setStatus = (message) => { $('status').textContent = message; };
@@ -162,7 +162,9 @@ function loadObject(url,filename) {
     setStatus('Object import failed. Use a self-contained GLB for reliable textures and materials.');
     if(revoke)URL.revokeObjectURL(url);
   };
-  setStatus('Opening '+filename+' locally. Your FBX is not uploaded to GitHub.');
+  setStatus(revoke
+    ? 'Opening '+filename+' locally. Your selected file remains on this device.'
+    : 'Loading '+filename+' from your published GitHub Pages assets…');
   if(extension==='glb'||extension==='gltf')glbLoader.load(url,done,undefined,failed);
   else if(extension==='obj')objLoader.load(url,done,undefined,failed);
   else if(extension==='fbx')fbxLoader.load(url,done,undefined,failed);
@@ -170,9 +172,18 @@ function loadObject(url,filename) {
 }
 const initialModel=OBJECT_CONFIG.modelUrl;
 if(typeof initialModel==='string'&&initialModel.trim()){
-  loadObject(initialModel,initialModel);
+  // A missing remote asset should NOT prevent the user loading a local FBX.
+  // HEAD avoids downloading an entire 31+ MB FBX just to discover a 404.
+  setStatus('Checking published Orc asset… The local file picker is available.');
+  fetch(initialModel,{method:'HEAD',cache:'no-store'}).then(response=>{
+    if(response.ok)loadObject(initialModel,decodeURIComponent(initialModel.split('/').pop()));
+    else if(!avatar)setStatus('Orc Idle.fbx is not yet published. Select the FBX locally, or commit and Push origin in GitHub Desktop.');
+  }).catch(error=>{
+    console.warn('Could not check published model:',error);
+    if(!avatar)setStatus('Cannot check hosted model. Choose your FBX with the upload button to open it locally.');
+  });
 }else{
-  setStatus('Orc editor ready. Upload Orc Idle.fbx using the file chooser. The FBX stays on your device.');
+  setStatus('Orc editor ready. Select Orc Idle.fbx to import it locally.');
 }
 $('assetFile').addEventListener('change',event=>{
   const file=event.target.files?.[0];

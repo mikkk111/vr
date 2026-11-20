@@ -96,9 +96,9 @@
       "id": "orc-idle",
       "title": "Orc Idle — Rigged Character",
       "url": "./objects/orc-idle/",
-      "modelPath": null,
-      "description": "Upload your own animated FBX in the browser and pose its Mixamo joints within angular limits in Meta Quest 3 passthrough; Zelda v13 whole-character controls preserved.",
-      "status": "local"
+      "modelPath": "./objects/orc-idle/assets/Orc Idle.fbx",
+      "description": "Hosted rigged Orc Idle FBX with automatic loading, uninterrupted idle animation, unrestricted three-axis limb posing, invisible skin picking and Meta Quest 3 passthrough; original Zelda v13 whole-object controls unchanged.",
+      "status": "ready"
     }
   ]
 }

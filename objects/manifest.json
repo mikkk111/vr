@@ -71,7 +71,7 @@
       "url": "./objects/paintable2/",
       "modelPath": "./objects/paintable2/assets/Paintable2.glb",
       "description": "Original textured Paintable2 GLB in the Zelda v13 Quest 3 passthrough environment.",
-      "status": "pending"
+      "status": "ready"
     }
   ]
 }

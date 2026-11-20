@@ -8,34 +8,38 @@ const Q = () => new THREE.Quaternion();
 const D = Math.PI / 180;
 const get = bone => bone.getWorldPosition(V());
 
+// Return to broad, legacy-style joint rotation ranges, not the overly
+// narrow per-axis IK v2 restrictions. Endpoints remain constrained by the
+// source skeleton and angles are never allowed a full 180-degree inversion.
 export const JOINT_LIMITS = {
-  Hips:[[-25,25],[-30,30],[-20,20]],
-  Spine:[[-15,15],[-18,18],[-15,15]],
-  Spine1:[[-18,18],[-20,20],[-18,18]],
-  Spine2:[[-22,22],[-25,25],[-20,20]],
-  Neck:[[-32,32],[-40,40],[-28,28]],
-  Head:[[-30,30],[-42,42],[-25,25]],
-  LeftShoulder:[[-30,30],[-35,35],[-30,30]],
-  RightShoulder:[[-30,30],[-35,35],[-30,30]],
-  LeftArm:[[-105,105],[-95,95],[-95,95]],
-  RightArm:[[-105,105],[-95,95],[-95,95]],
-  LeftForeArm:[[-135,135],null,null],
-  RightForeArm:[[-135,135],null,null],
-  LeftHand:[[-45,45],[-30,30],[-45,45]],
-  RightHand:[[-45,45],[-30,30],[-45,45]],
-  LeftHandIndex1:[[-80,80],null,null],
-  LeftHandIndex2:[[-85,85],null,null],
-  LeftHandIndex3:[[-75,75],null,null],
-  RightHandIndex1:[[-80,80],null,null],
-  RightHandIndex2:[[-85,85],null,null],
-  RightHandIndex3:[[-75,75],null,null],
-  LeftUpLeg:[[-105,105],[-50,50],[-65,65]],
-  RightUpLeg:[[-105,105],[-50,50],[-65,65]],
-  LeftLeg:[[-135,135],null,null],
-  RightLeg:[[-135,135],null,null],
-  LeftFoot:[[-35,35],[-22,22],[-30,30]],
-  RightFoot:[[-35,35],[-22,22],[-30,30]],
-  LeftToeBase:[[-35,35],null,null],RightToeBase:[[-35,35],null,null]
+  Hips:[[-65,65],[-65,65],[-65,65]],
+  Spine:[[-45,45],[-45,45],[-45,45]],
+  Spine1:[[-50,50],[-50,50],[-50,50]],
+  Spine2:[[-55,55],[-55,55],[-55,55]],
+  Neck:[[-75,75],[-75,75],[-75,75]],
+  Head:[[-80,80],[-80,80],[-80,80]],
+  LeftShoulder:[[-115,115],[-115,115],[-115,115]],
+  RightShoulder:[[-115,115],[-115,115],[-115,115]],
+  LeftArm:[[-160,160],[-160,160],[-160,160]],
+  RightArm:[[-160,160],[-160,160],[-160,160]],
+  LeftForeArm:[[-155,155],null,null],
+  RightForeArm:[[-155,155],null,null],
+  LeftHand:[[-100,100],[-100,100],[-100,100]],
+  RightHand:[[-100,100],[-100,100],[-100,100]],
+  LeftHandIndex1:[[-110,110],null,null],
+  LeftHandIndex2:[[-110,110],null,null],
+  LeftHandIndex3:[[-110,110],null,null],
+  RightHandIndex1:[[-110,110],null,null],
+  RightHandIndex2:[[-110,110],null,null],
+  RightHandIndex3:[[-110,110],null,null],
+  LeftUpLeg:[[-150,150],[-150,150],[-150,150]],
+  RightUpLeg:[[-150,150],[-150,150],[-150,150]],
+  LeftLeg:[[-155,155],null,null],
+  RightLeg:[[-155,155],null,null],
+  LeftFoot:[[-100,100],[-100,100],[-100,100]],
+  RightFoot:[[-100,100],[-100,100],[-100,100]],
+  LeftToeBase:[[-90,90],null,null],
+  RightToeBase:[[-90,90],null,null]
 };
 
 export const keyOf = bone => bone.name.replace(/^mixamorig[:_]?/i,'').replace(/[^A-Za-z0-9]/g,'');
@@ -73,7 +77,7 @@ export function boundedLocal(bone,desired,opts={}) {
     // A knee/elbow is a hinge. Project into its calibrated local axis;
     // the solver keeps the bend pole on its natural side.
     const relative=bind.clone().invert().multiply(output);
-    const theta=THREE.MathUtils.clamp(signedTwist(relative,axis),-135*D,135*D);
+    const theta=THREE.MathUtils.clamp(signedTwist(relative,axis),-155*D,155*D);
     output=bind.clone().multiply(Q().setFromAxisAngle(axis,theta)).normalize();
   }
   return capQ(output,bind,limit);

@@ -4,7 +4,7 @@ import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGrabPhysics } from '../../shared/zelda-v13/physics-grab.js?v=template-1';
-import { createOrcIKPose } from './pose-ik.js?v=orc-freepose-1';
+import { createOrcIKPose } from './pose-ik.js?v=orc-unrestricted-1';
 import { OBJECT_CONFIG } from './config.js?v=orc-autoload-1';
 
 const $ = (id) => document.getElementById(id);
@@ -147,7 +147,7 @@ function installObject(root,label='Object') {
   modelAnchor.position.set(0,Math.max(0.4,Math.min(1.6,dimensions.y/2)),-2);
   modelSize=dimensions;
   if(physics)physics.attachModel(modelSize);
-  setStatus(label+' loaded. '+(poseLayer?.boneCount||0)+' bones, '+(poseLayer?.ikTargetNames?.length||0)+' moveable IK targets, '+clips.length+' animation clip(s). Aim directly at arms, legs, hands or head, hold TRIGGER to pose without visible joint balls. Animation continues.');
+  setStatus(label+' loaded. '+(poseLayer?.boneCount||0)+' bones, '+(poseLayer?.ikTargetNames?.length||0)+' moveable IK targets, '+clips.length+' animation clip(s). FREE POSE: grab hands or feet with TRIGGER and move controllers anywhere within the actual limb reach. No artificial angle or drag limits. Animation continues.');
 }
 // Local and hosted FBX loading share the same loader. The published model is
 // fetched straight from the repository, so the Pages asset deployment delay

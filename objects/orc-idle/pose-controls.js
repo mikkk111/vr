@@ -63,6 +63,9 @@ export function createOrcPose({renderer,scene,root,camera,onStatus,onPoseStart,o
     // transforms. Thus manually applied offsets never compound each frame.
     for(const j of joints){
       if(!j.changed)continue;
+      // Static GLB rigs have no AnimationMixer to restore the bind pose;
+      // reset edited joints before applying offsets to avoid frame drift.
+      if(!(Array.isArray(root.animations)&&root.animations.length))j.bone.quaternion.copy(j.bind);
       const base=j.bind.clone().invert().multiply(j.bone.quaternion);
       if(j.hinge){
         const a=j.axis;
@@ -101,7 +104,15 @@ export function createOrcPose({renderer,scene,root,camera,onStatus,onPoseStart,o
       if(!enabled)return;
       const j=findXR(c);if(!j)return;
       choose(j);onPoseStart?.();
-      active.set(i,{j,start:aiming(c).q,values:[...j.values],frame:j.bone.getWorldQuaternion(Q())});
+      const startAim=aiming(c);
+      const frame=j.bone.getWorldQuaternion(Q());
+      const axisWorld=j.hinge?j.axis.clone().applyQuaternion(frame):null;
+      const child=j.bone.children.find(b=>b.isBone);
+      const limb=child?point(child).sub(point(j.bone)).normalize():bodyUp.clone();
+      let tangent=j.hinge?new THREE.Vector3().crossVectors(axisWorld,limb):null;
+      if(tangent&&tangent.lengthSq()<.001)tangent=bodyUp.clone();
+      tangent?.normalize();
+      active.set(i,{j,start:startAim.q,position:startAim.o,values:[...j.values],frame,tangent});
       onStatus?.(j.name+': hold TRIGGER and twist wrist; release to hold pose. Side GRIPS move the entire character.');
     };
     const end=()=>active.delete(i);
@@ -111,7 +122,9 @@ export function createOrcPose({renderer,scene,root,camera,onStatus,onPoseStart,o
   function updateXR(){
     if(!enabled || !renderer.xr.isPresenting)return;
     for(const [i,s] of active){
-      const cur=aiming(controllers[i]).q;
+      const current=aiming(controllers[i]);
+      const motion=current.o.clone().sub(s.position);
+      const cur=current.q;
       const delta=cur.multiply(s.start.clone().invert());
       const local=s.frame.clone().invert().multiply(delta).multiply(s.frame);
       if(s.j.hinge){
@@ -119,10 +132,12 @@ export function createOrcPose({renderer,scene,root,camera,onStatus,onPoseStart,o
         const twist=local.x*a.x+local.y*a.y+local.z*a.z;
         let angle=2*Math.atan2(twist,local.w)/D;
         angle=((angle+180)%360+360)%360-180;
-        modify(s.j,[s.values[0]+angle,0,0]);
+        modify(s.j,[s.values[0]+angle+motion.dot(s.tangent)*110,0,0]);
       }else{
         const angles=new THREE.Euler().setFromQuaternion(local,'XYZ');
-        modify(s.j,[s.values[0]+angles.x/D,s.values[1]+angles.y/D,s.values[2]+angles.z/D]);
+        const m=motion.applyQuaternion(s.frame.clone().invert());
+        modify(s.j,[s.values[0]+angles.x/D+m.y*85,
+          s.values[1]+angles.y/D+m.x*85,s.values[2]+angles.z/D+m.z*60]);
       }
     }
   }
@@ -163,6 +178,7 @@ export function createOrcPose({renderer,scene,root,camera,onStatus,onPoseStart,o
     setEnabled(v){enabled=!!v;if(!enabled){active.clear();pointerUp();}},
     setShowMarkers(v){handlesVisible=!!v;},
     selectName(name){choose(names.get(name));},
+    getSelected(){return {name:chosen.name,hinge:chosen.hinge,limits:chosen.limits,values:[...chosen.values]};},
     changeSelected(axis,v){const next=[...chosen.values];next[axis]=v;modify(chosen,next);},
     resetPose(){
       active.clear();pointerUp();

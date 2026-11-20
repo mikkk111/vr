@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {JOINT_LIMITS,keyOf,hingeAxis,boundedLocal,solveTwoBone,solveOneBone} from './ik-solver.js?v=orc-ik-2';
+import {JOINT_LIMITS,keyOf,hingeAxis,boundedLocal,solveTwoBone,solveOneBone} from './ik-solver.js?v=orc-freepose-1';
 
 // The authored FBX clip remains live. Each frame: restore the base rig,
 // evaluate AnimationMixer, then solve local-space IK target OFFSETS.
@@ -54,7 +54,6 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
   if(bodyUp.lengthSq()<.1)bodyUp.set(0,1,0);
   const bodyFront=V().crossVectors(bodyRight,bodyUp).normalize();
   if(bodyFront.lengthSq()<.1)bodyFront.set(0,0,1);
-  const sphere=new THREE.SphereGeometry(.018,10,8);
   const joints=[];
   for(const [name,bone] of bones){
     const limits=JOINT_LIMITS[name];if(!limits)continue;
@@ -64,13 +63,9 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
       ?hingeAxis(parent,bone,next,bodyRight)
       :hinge?bodyRight.clone().applyQuaternion(bone.getWorldQuaternion(Q()).invert()).normalize():null;
     const isIK=IK_DEFS.some(d=>d.name===name);
-    const material=new THREE.MeshBasicMaterial({
-      color:isIK?0x6ce8a1:hinge?0xffaf67:0xa29cfa,
-      opacity:isIK?.92:.63,transparent:true,depthTest:false
-    });
-    const marker=new THREE.Mesh(sphere,material);
-    marker.renderOrder=90;scene.add(marker);
-    joints.push({name,bone,limits,axis,hinge,isIK,marker,
+    // NO visual spheres, markers or other overlay geometry is created.
+    // Real skinned mesh surface is picked with a raycast instead.
+    joints.push({name,bone,limits,axis,hinge,isIK,
       offsets:[0,0,0],manual:false,bind:rest.get(bone)});
   }
   if(!joints.length)throw Error('No recognised bone names for this rig.');
@@ -100,7 +95,7 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
     if(j)j.isIK=true;
   }
   let selected=jointMap.get('LeftHand')||joints[0];
-  let enabled=true,showHandles=true,dragging=null,dragCallback=()=>{};
+  let enabled=true,dragging=null,dragCallback=()=>{};
   const xrControllers=[renderer.xr.getController(0),renderer.xr.getController(1)];
   const activeXR=new Map();
   function notify(){
@@ -121,14 +116,16 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
     const desired=worldToRoot(worldPoint);
     t.offset.copy(desired).sub(t.baseLocal).clampLength(0,2.0);
   }
+  // Broad quaternion caps from the established rig editor; no additional
+  // tight per-axis limits constraining the target solver.
   function maxAngles(bone){
     const n=keyOf(bone);
-    if(n==='Spine2')return 30;
-    if(n==='Neck')return 48;
-    if(n.includes('Arm'))return 135;
-    if(n.includes('UpLeg'))return 110;
-    if(n.includes('Leg'))return 140;
-    return 125;
+    if(/Arm/.test(n))return 160;
+    if(/UpLeg/.test(n))return 150;
+    if(/Leg/.test(n))return 155;
+    if(/Neck|Head/.test(n))return 80;
+    if(/Spine/.test(n))return 70;
+    return 160;
   }
   function applyTargets(){
     // All animated base joint positions were captured before solving.
@@ -140,14 +137,14 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
           opts:{bind:rest.get(t.upperBone),limit:maxAngles(t.upperBone)}},desired);
       } else {
         const upper=t.upperBone,lower=t.lowerBone;
-        const hinge=jointMap.get(keyOf(lower));
-        const upperLimit=maxAngles(upper);
-        const lowerLimit=maxAngles(lower);
+        // Legacy solver style: follow target with natural quaternion rotation.
+        // Earlier hinge-axis projection here could block shoulder-to-wrist
+        // repositioning for FBX skeletons with unconventional local axes.
         solveTwoBone({
           upper,lower,end:t.end,
           fallbackPole:t.fallback.clone().applyQuaternion(root.getWorldQuaternion(Q())),
-          upperOpts:{bind:rest.get(upper),limit:upperLimit},
-          lowerOpts:{bind:rest.get(lower),axis:t.name==='Head'?null:hinge?.axis,limit:lowerLimit}
+          upperOpts:{bind:rest.get(upper),limit:maxAngles(upper)},
+          lowerOpts:{bind:rest.get(lower),limit:maxAngles(lower)}
         },desired);
       }
     }
@@ -161,41 +158,71 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
         :Q().setFromEuler(new THREE.Euler(o[0]*D,o[1]*D,o[2]*D,'XYZ'));
       const desired=b.quaternion.clone().multiply(additive);
       const name=j.name;
-      const cap=/ForeArm|Leg$/.test(name)?140:/UpLeg/.test(name)?110:/Arm/.test(name)?135:
-        /Spine|Neck|Head/.test(name)?55:70;
+      const cap=maxAngles(b);
       b.quaternion.copy(boundedLocal(b,desired,
         {bind:j.bind,limit:cap,axis:j.hinge?j.axis:null}));
     }
     root.updateWorldMatrix(true,true);
   }
-  function project(j) {
-    const p=at(j.bone).project(camera);
-    if(p.z< -1||p.z>1)return null;
-    return [(p.x+1)*innerWidth*.5,(1-p.y)*innerHeight*.5];
-  }
-  function nearestPixel(x,y){
-    if(!showHandles)return null;
-    let best=null,dist=Infinity;
-    for(const j of joints){
-      const p=project(j);if(!p)continue;
-      const d=Math.hypot(p[0]-x,p[1]-y)/(j.isIK?1.35:1);
-      if(d<dist && d<32){dist=d;best=j;}
+  // Surface picking: invisible skeletal landmarks and real skinned mesh only.
+  // No sphere geometry, material or rendered marker is present anywhere.
+  const raycaster=new THREE.Raycaster();
+  function nearestSkinTarget(point){
+    let best=null,closest=Infinity;
+    const ikJoints=joints.filter(j=>targets.has(j.name));
+    for(const j of ikJoints){
+      const d=at(j.bone).distanceToSquared(point);
+      if(d<closest){best=j;closest=d;}
     }
     return best;
   }
-  function nearestXR(controller) {
-    if(!showHandles)return null;
+  function rayHit(origin,direction){
+    root.updateWorldMatrix(true,true);
+    raycaster.ray.origin.copy(origin);
+    raycaster.ray.direction.copy(direction).normalize();
+    raycaster.near=0.01;
+    raycaster.far=100;
+    // Raycast only upon trigger/click; never every animation frame.
+    return raycaster.intersectObjects(meshes,false)[0]?.point||null;
+  }
+  function nearestPixel(x,y){
+    const pick=new THREE.Raycaster();
+    pick.setFromCamera(new THREE.Vector2(2*x/innerWidth-1,1-2*y/innerHeight),camera);
+    const hit=rayHit(pick.ray.origin,pick.ray.direction);
+    if(hit)return nearestSkinTarget(hit);
+    // Allow clicking thin fingers and extremities even if the skin ray misses.
+    let best=null,dist=Infinity;
+    for(const j of joints){
+      const p=at(j.bone).project(camera);
+      if(p.z< -1||p.z>1)continue;
+      const px=(p.x+1)*innerWidth*.5,py=(1-p.y)*innerHeight*.5;
+      const d=Math.hypot(px-x,py-y);
+      if(d<dist&&d<32){dist=d;best=j;}
+    }
+    return best;
+  }
+  function nearestXR(controller){
     root.updateWorldMatrix(true,true);
     const {position,direction}=worldAim(controller);
-    let best=null,bestScore=Infinity;
+    let nearest=null,close=Infinity;
+    // Near-hand gesture takes precedence over remote pointing.
     for(const j of joints){
-      const v=at(j.bone).sub(position),length=v.length(),along=v.dot(direction);
-      const error=v.addScaledVector(direction,-along).length();
-      const valid=length<.24 || (along>0&&error<Math.max(.055,along*.035));
-      if(!valid)continue;
-      const score=length<.24?length:1+error+along*.007;
-      const adjusted=score/(j.isIK?1.13:1);
-      if(adjusted<bestScore){best=j;bestScore=adjusted;}
+      const distance=at(j.bone).distanceTo(position);
+      if(distance<close&&distance<0.27){nearest=j;close=distance;}
+    }
+    if(nearest)return nearest;
+    const hit=rayHit(position,direction);
+    if(hit)return nearestSkinTarget(hit);
+    // Ray may narrowly miss a hand or foot; bone landmark fallback.
+    let best=null,bestError=Infinity;
+    for(const j of joints){
+      const v=at(j.bone).sub(position);
+      const depth=v.dot(direction);
+      if(depth<=0)continue;
+      const miss=v.addScaledVector(direction,-depth).length();
+      if(miss<Math.max(.06,depth*.028)&&miss<bestError){
+        bestError=miss;best=j;
+      }
     }
     return best;
   }
@@ -306,7 +333,6 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
     ikTargetNames:targetList.map(t=>t.name),
     setDesktopDragging(fn){dragCallback=fn;},
     setEnabled(value){enabled=!!value;if(!enabled){activeXR.clear();end();}},
-    setShowMarkers(value){showHandles=!!value;},
     selectName(name){choose(jointMap.get(name));},
     getSelected(){return {name:selected.name,hinge:selected.hinge,
       limits:selected.limits,values:[...selected.offsets],ik:targets.has(selected.name)};},
@@ -326,13 +352,7 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
       updateXR();
       applyTargets();
       applyAngleEdits();
-      for(const j of joints){
-        j.marker.visible=enabled&&showHandles;
-        if(!j.marker.visible)continue;
-        j.marker.position.copy(at(j.bone));
-        j.marker.scale.setScalar(j===selected?1.55:j.isIK?1.2:.8);
-        j.marker.material.opacity=j===selected?1:j.isIK?.85:.53;
-      }
+      // No rendered joint balls. Skinned FBX geometry is shown unmodified.
     },
     resetPose(){
       activeXR.clear();end();
@@ -349,8 +369,7 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
       renderer.domElement.removeEventListener('pointerdown',down,true);
       window.removeEventListener('pointermove',move);
       window.removeEventListener('pointerup',end);
-      for(const j of joints){scene.remove(j.marker);j.marker.material.dispose();}
-      sphere.dispose();
+
     }
   };
 }

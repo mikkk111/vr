@@ -1,0 +1,97 @@
+name: Verify direct Trellis GLB upload and publish
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'objects/trellis-20261120-203304/assets/trellis_20261120-203304-746854.glb'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: direct-trellis-20261120-203304-publish
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify complete original GLB, UVs and textures
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, struct
+
+          path=Path('objects/trellis-20261120-203304/assets/trellis_20261120-203304-746854.glb')
+          if not path.is_file():
+              raise SystemExit('FAIL: model has not been uploaded')
+          data=path.read_bytes()
+          expected_sha='b41f9107a1b5f0eb5760b2950b4081cc960e8ecd68cd51ce9ac11a92bdba8dfa'
+          observed_sha=hashlib.sha256(data).hexdigest()
+          if len(data)!=22415968 or observed_sha!=expected_sha:
+              raise SystemExit(f'FAIL: original model mismatch: size={len(data)}, sha256={observed_sha}')
+          if data[:4]!=b'glTF' or struct.unpack_from('<II',data,4)!=(2,len(data)):
+              raise SystemExit('FAIL: invalid GLB v2 header')
+          json_size,json_type=struct.unpack_from('<II',data,12)
+          if json_type!=0x4e4f534a or json_size<100 or 20+json_size+8>len(data):
+              raise SystemExit('FAIL: GLB JSON section invalid')
+          doc=json.loads(data[20:20+json_size])
+          bin_size,bin_type=struct.unpack_from('<II',data,20+json_size)
+          bin_start=20+json_size+8
+          if bin_type!=0x004e4942 or bin_start+bin_size!=len(data):
+              raise SystemExit('FAIL: GLB binary chunk invalid')
+          if len(doc.get('meshes',[]))!=1 or len(doc['meshes'][0]['primitives'])!=1:
+              raise SystemExit('FAIL: mesh count changed')
+          primitive=doc['meshes'][0]['primitives'][0]
+          accessors=doc['accessors']
+          if primitive.get('mode',4)!=4 or accessors[primitive['indices']]['count']!=1483269:
+              raise SystemExit('FAIL: triangle indices changed')
+          attributes=primitive['attributes']
+          for attribute in ('POSITION','TEXCOORD_0','NORMAL'):
+              if attribute not in attributes or accessors[attributes[attribute]]['count']!=382250:
+                  raise SystemExit('FAIL: missing or altered '+attribute)
+          if len(doc.get('materials',[]))!=1 or len(doc.get('textures',[]))!=2 or len(doc.get('images',[]))!=2:
+              raise SystemExit('FAIL: source material/texture count mismatch')
+          if doc.get('skins') or doc.get('animations'):
+              raise SystemExit('FAIL: unexpected rig or animation')
+          for i,im in enumerate(doc['images']):
+              if im.get('mimeType')!='image/png' or 'bufferView' not in im:
+                  raise SystemExit('FAIL: image not embedded PNG')
+              view=doc['bufferViews'][im['bufferView']]
+              start=bin_start+view.get('byteOffset',0)
+              end=start+view['byteLength']
+              if end>len(data) or data[start:start+8]!=b'\x89PNG\r\n\x1a\n':
+                  raise SystemExit('FAIL: invalid embedded PNG '+str(i))
+              width,height=struct.unpack_from('>II',data,start+16)
+              if (width,height)!=(2048,2048):
+                  raise SystemExit('FAIL: unexpected texture size '+str((width,height)))
+          print('PASS: source bytes, SHA-256, GLB 2.0, 494423 triangles, 382250 UV-mapped vertices, normals and two 2048px PNGs intact')
+          PY
+      - name: Mark catalogue ready only after all integrity checks
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path=Path('objects/manifest.json')
+          data=json.loads(path.read_text())
+          entries=[x for x in data.get('objects',[]) if x.get('id')=='trellis-20261120-203304']
+          if len(entries)!=1 or entries[0].get('modelPath')!='./objects/trellis-20261120-203304/assets/trellis_20261120-203304-746854.glb':
+              raise SystemExit('FAIL: object manifest entry missing or incorrect')
+          if entries[0].get('status') not in ('pending','ready'):
+              raise SystemExit('FAIL: unexpected object status')
+          if entries[0]['status']!='ready':
+              entries[0]['status']='ready'
+              path.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add objects/manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Mark checksum-verified Trellis 20 November model ready'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi

@@ -91,6 +91,14 @@
       "license": "CC BY 4.0",
       "sourceUrl": "https://sketchfab.com/3d-models/heidi-719b33ba7bb44203ab4ad1bc9872bb74",
       "status": "ready"
+    },
+    {
+      "id": "orc-idle",
+      "title": "Orc Idle — Rigged Character",
+      "url": "./objects/orc-idle/",
+      "modelPath": null,
+      "description": "Upload your own animated FBX in the browser and pose its Mixamo joints within angular limits in Meta Quest 3 passthrough; Zelda v13 whole-character controls preserved.",
+      "status": "local"
     }
   ]
 }

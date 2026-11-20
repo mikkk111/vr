@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { prepareUnlitModel } from '../../shared/zelda-v13/unlit-materials.js?v=unlit-1';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
@@ -13,8 +14,8 @@ const stage = $('scene');
 const scene = new THREE.Scene(); // Transparency is required for passthrough.
 const renderer = new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.toneMappingExposure = 1;
 renderer.setClearColor(0x000000,0);
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1,1.5));
 renderer.setSize(innerWidth,innerHeight);
@@ -34,15 +35,7 @@ controls.minDistance=.65;controls.maxDistance=50000;
 controls.maxPolarAngle=Math.PI*.55;
 controls.update();
 
-scene.add(new THREE.HemisphereLight(0xffffff,0x859ba3,2));
-const key=new THREE.DirectionalLight(0xfff5e6,2.1);
-key.position.set(-2,4.7,2.5);
-key.castShadow=true;
-key.shadow.mapSize.set(1024,1024);
-key.shadow.camera.left=-5;key.shadow.camera.right=5;
-key.shadow.camera.top=5;key.shadow.camera.bottom=-5;
-key.shadow.normalBias=.02;
-scene.add(key);
+// Texture-only mode: no lighting nodes in the scene.
 
 // Model-independent anchor: no Zelda, mesh or other 3D object is bundled.
 const modelAnchor=new THREE.Group();
@@ -111,9 +104,7 @@ function installObject(root,label='Object') {
   if(avatar)modelAnchor.remove(avatar);
   avatar=root;
   root.position.sub(centre);
-  root.traverse(part=>{
-    if(part.isMesh){part.castShadow=false;part.receiveShadow=false;}
-  });
+  prepareUnlitModel(root);
   modelAnchor.add(root);
   // Source bones are captured before the FBX animation mixer starts.
   try{

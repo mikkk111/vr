@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#131b22">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
-  <title>Orc Idle v2 · Live Animation + Limb IK · Quest 3</title>
+  <title>Orc Idle · Flexible IK without joint markers · Quest 3</title>
   <style>
     :root{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark}
     *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101a23}
@@ -49,9 +49,9 @@
   <div id="scene"></div>
   <section id="panel">
     <div class="eyebrow">Meta Quest 3 · Orc Idle · Rigged character editor</div>
-    <h1>Orc Idle <span style="color:#86e8d4">IK v2</span></h1>
+    <h1>Orc Idle <span style="color:#86e8d4">Free Pose</span></h1>
     <div class="versionline"><strong>Live animation + spatial limb dragging</strong> · Original Zelda v13 grips preserved</div>
-    <div class="sub">The Orc FBX loads automatically from GitHub. If necessary, click LOAD ORC FROM GITHUB to retry. Move HAND, FOOT, ELBOW, KNEE and HEAD markers through 3D space; joints bend to follow your controller within restricted angles. The original idle animation keeps playing throughout.</div>
+    <div class="sub">The Orc FBX loads automatically from GitHub. Click or point directly at a hand, arm, leg, foot or head to grab and pose the character. No joint balls or overlays. Joint movement now uses broad, familiar rotation ranges, and the idle animation keeps playing.</div>
     <button id="enterAR" class="primary" type="button" disabled>CHECKING QUEST SUPPORT…</button>
     <div class="controls"><button id="loadHosted" type="button">LOAD ORC FROM GITHUB</button></div>
     <label id="filelabel" for="assetFile">UPLOAD YOUR FBX / GLB FROM THIS DEVICE</label>
@@ -71,15 +71,15 @@
       <div class="angle-row" id="jointRow0"><label for="angle0" id="angleLabel0">Pitch</label><input id="angle0" type="range" min="-30" max="30" step="1" value="0"><output id="angleValue0">0°</output></div>
       <div class="angle-row" id="jointRow1"><label for="angle1" id="angleLabel1">Yaw</label><input id="angle1" type="range" min="-30" max="30" step="1" value="0"><output id="angleValue1">0°</output></div>
       <div class="angle-row" id="jointRow2"><label for="angle2" id="angleLabel2">Roll</label><input id="angle2" type="range" min="-30" max="30" step="1" value="0"><output id="angleValue2">0°</output></div>
-      <div class="control-row"><input type="checkbox" id="showHandles" checked><label for="showHandles">Show selectable joint points</label></div>
+      
     </div>
     <div id="status" role="status">Connecting to GitHub to load the rigged Orc FBX…</div>
     
-    <div class="hint"><strong>MOVE A LIMB (GREEN points):</strong> aim your Quest controller at the hand, ankle, elbow, knee or head marker, HOLD the TRIGGER, then MOVE the controller in any direction (up/down, left/right, closer/farther). The limb follows the target through two-bone inverse kinematics. Release trigger to retain the new position while the idle animation continues.
-      <br><strong>TWIST A JOINT (PURPLE / AMBER points):</strong> aim at another joint marker, squeeze TRIGGER and rotate the wrist; use the angle sliders in desktop mode.
-      <br><strong>Desktop:</strong> click and drag a green target to reposition an arm, leg or head; SHIFT + drag to move nearer/farther. Right/other mouse dragging outside a marker orbits the preview.
+    <div class="hint"><strong>MOVE A LIMB:</strong> aim the Quest controller directly at the character’s hand, forearm, leg, foot or head (there are NO visible joint balls). HOLD the TRIGGER, move the controller in any direction (up/down, left/right, closer/farther) and release to keep the new position. Animated idle movement continues.
+      <br><strong>TWIST A JOINT:</strong> choose a named bone from the dropdown to use the pitch/yaw/roll sliders. On Quest, aim directly at a joint region, hold TRIGGER and rotate the wrist.
+      <br><strong>Desktop:</strong> click the character’s arm, hand, leg, foot or head and drag to reposition. SHIFT + drag moves depth. Drag empty background to orbit the preview.
       <br><strong>Animation:</strong> keeps playing automatically during limb posing. The Play/Pause button only stops it when YOU choose to pause.
-      <br><strong>Joint safety:</strong> limbs are repositioned by constrained bone rotations without changing bone lengths. Elbows, knees and finger joints have bounded hinges; shoulders, hips and neck have angular caps. Physical self-collision is not simulated.
+      <br><strong>Joint range:</strong> restored broad conventional pose limits rather than the previous tight per-axis IK caps. Bone lengths and skin weights are unchanged. Self-collision is not simulated.
       <br><strong>Missing joints:</strong> this FBX only supplies index-finger chains, not separately articulated thumbs or other fingers.
       <br><br><strong>Quest controller mapping</strong>
       <br><strong>Grip:</strong> aim the Quest target ray at the object and squeeze to grab nearby or remotely; the second grip joins the hold.
@@ -93,7 +93,7 @@
       <br><br><strong>Desktop:</strong> drag to orbit, scroll to zoom, WASD to navigate.
     </div>
   </section>
-  <div id="footer">ORC IDLE v2 · LIVE IDLE ANIMATION + SPATIAL IK · Zelda v13 grips unchanged</div>
-  <script type="module" src="./app.js?v=orc-autoload-2"></script>
+  <div id="footer">ORC IDLE · FLEXIBLE IK · NO JOINT BALLS · LIVE ANIMATION · Zelda v13 grips unchanged</div>
+  <script type="module" src="./app.js?v=orc-freepose-1"></script>
 </body>
 </html>

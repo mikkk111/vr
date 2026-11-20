@@ -1,0 +1,326 @@
+import * as THREE from 'three';
+import {JOINT_LIMITS,keyOf,hingeAxis,boundedLocal,solveTwoBone,solveOneBone} from './ik-solver.js?v=orc-ik-2';
+
+// The authored FBX clip remains live. Each frame: restore the base rig,
+// evaluate AnimationMixer, then solve local-space IK target OFFSETS.
+// Controller triggers are independent of the unmodified Zelda v13 side grips.
+const D=Math.PI/180, V=()=>new THREE.Vector3(), Q=()=>new THREE.Quaternion();
+const at=bone=>bone.getWorldPosition(V());
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const IK_DEFS=[
+  {name:'LeftHand',kind:'two',upper:'LeftArm',lower:'LeftForeArm'},
+  {name:'RightHand',kind:'two',upper:'RightArm',lower:'RightForeArm'},
+  {name:'LeftFoot',kind:'two',upper:'LeftUpLeg',lower:'LeftLeg'},
+  {name:'RightFoot',kind:'two',upper:'RightUpLeg',lower:'RightLeg'},
+  {name:'Head',kind:'two',upper:'Spine2',lower:'Neck'},
+  {name:'LeftForeArm',kind:'one',upper:'LeftArm'},
+  {name:'RightForeArm',kind:'one',upper:'RightArm'},
+  {name:'LeftLeg',kind:'one',upper:'LeftUpLeg'},
+  {name:'RightLeg',kind:'one',upper:'RightUpLeg'}
+];
+function angleAxis(delta,axis) {
+  const x=delta.x*axis.x+delta.y*axis.y+delta.z*axis.z;
+  let rad=2*Math.atan2(x,delta.w);
+  rad=Math.atan2(Math.sin(rad),Math.cos(rad));
+  return rad/D;
+}
+function worldAim(controller) {
+  controller.updateWorldMatrix(true,false);
+  const position=controller.getWorldPosition(V());
+  const quat=controller.getWorldQuaternion(Q());
+  return {position,quat,direction:V().set(0,0,-1).applyQuaternion(quat).normalize()};
+}
+export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection}) {
+  const bones=new Map(), allBones=[],rest=new Map(),meshes=[];
+  root.traverse(node=>{
+    if(node.isBone){
+      allBones.push(node);rest.set(node,node.quaternion.clone());
+      const k=keyOf(node);if(!bones.has(k))bones.set(k,node);
+    }
+    if(node.isSkinnedMesh && node.skeleton?.bones?.length)meshes.push(node);
+  });
+  if(!meshes.length)throw Error('A skinned humanoid FBX/GLB is required for IK posing.');
+  root.updateWorldMatrix(true,true);
+  const bodyRight=V().set(1,0,0).applyQuaternion(root.getWorldQuaternion(Q()));
+  const sphere=new THREE.SphereGeometry(.018,10,8);
+  const joints=[];
+  for(const [name,bone] of bones){
+    const limits=JOINT_LIMITS[name];if(!limits)continue;
+    const hinge=!limits[1],parent=bone.parent?.isBone?bone.parent:null;
+    const next=bone.children.find(n=>n.isBone);
+    const axis=hinge && parent && next
+      ?hingeAxis(parent,bone,next,bodyRight)
+      :hinge?bodyRight.clone().applyQuaternion(bone.getWorldQuaternion(Q()).invert()).normalize():null;
+    const isIK=IK_DEFS.some(d=>d.name===name);
+    const material=new THREE.MeshBasicMaterial({
+      color:isIK?0x6ce8a1:hinge?0xffaf67:0xa29cfa,
+      opacity:isIK?.92:.63,transparent:true,depthTest:false
+    });
+    const marker=new THREE.Mesh(sphere,material);
+    marker.renderOrder=90;scene.add(marker);
+    joints.push({name,bone,limits,axis,hinge,isIK,marker,
+      offsets:[0,0,0],manual:false,bind:rest.get(bone)});
+  }
+  if(!joints.length)throw Error('No recognised bone names for this rig.');
+  const jointMap=new Map(joints.map(j=>[j.name,j]));
+  const targetList=IK_DEFS.filter(d=>bones.has(d.name)&&bones.has(d.upper)&&
+       (d.kind==='one'||bones.has(d.lower))).map(d=>{
+    const parent=bones.get(d.upper),mid=d.lower?bones.get(d.lower):null,end=bones.get(d.name);
+    const fallback=mid
+      ?at(mid).sub(at(parent)).cross(at(end).sub(at(mid))).normalize()
+      :bodyRight.clone();
+    if(fallback.lengthSq()<1e-7)fallback.copy(bodyRight);
+    return {...d,upperBone:parent,lowerBone:mid,end,
+      offset:V(),fallback,baseLocal:V()};
+  });
+  const targets=new Map(targetList.map(t=>[t.name,t]));
+  for(const t of targets){
+    const j=jointMap.get(t.name);
+    if(j)j.isIK=true;
+  }
+  let selected=jointMap.get('LeftHand')||joints[0];
+  let enabled=true,showHandles=true,dragging=null,dragCallback=()=>{};
+  const xrControllers=[renderer.xr.getController(0),renderer.xr.getController(1)];
+  const activeXR=new Map();
+  function notify(){
+    onSelection?.({name:selected.name,hinge:selected.hinge,limits:selected.limits,
+      values:[...selected.offsets],ik:targets.has(selected.name)});
+  }
+  function choose(j){if(j){selected=j;notify();}}
+  function setAngles(j,values){
+    for(let i=0;i<3;i++)if(j.limits[i]&&Number.isFinite(values[i]))
+      j.offsets[i]=clamp(values[i],j.limits[i][0],j.limits[i][1]);
+    j.manual=true;
+    if(j===selected)notify();
+  }
+  const worldToRoot=v=>root.worldToLocal(v.clone());
+  function setTarget(t,worldPoint){
+    if(!t)return;
+    // The mixer has already evaluated the original unmodified animation.
+    const desired=worldToRoot(worldPoint);
+    t.offset.copy(desired).sub(t.baseLocal).clampLength(0,2.0);
+  }
+  function maxAngles(bone){
+    const n=keyOf(bone);
+    if(n==='Spine2')return 30;
+    if(n==='Neck')return 48;
+    if(n.includes('Arm'))return 135;
+    if(n.includes('UpLeg'))return 110;
+    if(n.includes('Leg'))return 140;
+    return 125;
+  }
+  function applyTargets(){
+    // All animated base joint positions were captured before solving.
+    for(const t of targetList){
+      if(t.offset.lengthSq()<1e-10)continue;
+      const desired=root.localToWorld(t.baseLocal.clone().add(t.offset));
+      if(t.kind==='one'){
+        solveOneBone({upper:t.upperBone,end:t.end,
+          opts:{bind:rest.get(t.upperBone),limit:maxAngles(t.upperBone)}},desired);
+      } else {
+        const upper=t.upperBone,lower=t.lowerBone;
+        const hinge=jointMap.get(keyOf(lower));
+        const upperLimit=maxAngles(upper);
+        const lowerLimit=maxAngles(lower);
+        solveTwoBone({
+          upper,lower,end:t.end,
+          fallbackPole:t.fallback.clone().applyQuaternion(root.getWorldQuaternion(Q())),
+          upperOpts:{bind:rest.get(upper),limit:upperLimit},
+          lowerOpts:{bind:rest.get(lower),axis:t.name==='Head'?null:hinge?.axis,limit:lowerLimit}
+        },desired);
+      }
+    }
+  }
+  function applyAngleEdits(){
+    for(const j of joints){
+      if(!j.manual)continue;
+      const o=j.offsets,b=j.bone;
+      const additive=j.hinge
+        ?Q().setFromAxisAngle(j.axis,o[0]*D)
+        :Q().setFromEuler(new THREE.Euler(o[0]*D,o[1]*D,o[2]*D,'XYZ'));
+      const desired=b.quaternion.clone().multiply(additive);
+      const name=j.name;
+      const cap=/ForeArm|Leg$/.test(name)?140:/UpLeg/.test(name)?110:/Arm/.test(name)?135:
+        /Spine|Neck|Head/.test(name)?55:70;
+      b.quaternion.copy(boundedLocal(b,desired,
+        {bind:j.bind,limit:cap,axis:j.hinge?j.axis:null}));
+    }
+    root.updateWorldMatrix(true,true);
+  }
+  function project(j) {
+    const p=at(j.bone).project(camera);
+    if(p.z< -1||p.z>1)return null;
+    return [(p.x+1)*innerWidth*.5,(1-p.y)*innerHeight*.5];
+  }
+  function nearestPixel(x,y){
+    if(!showHandles)return null;
+    let best=null,dist=Infinity;
+    for(const j of joints){
+      const p=project(j);if(!p)continue;
+      const d=Math.hypot(p[0]-x,p[1]-y)/(j.isIK?1.35:1);
+      if(d<dist && d<32){dist=d;best=j;}
+    }
+    return best;
+  }
+  function nearestXR(controller) {
+    if(!showHandles)return null;
+    root.updateWorldMatrix(true,true);
+    const {position,direction}=worldAim(controller);
+    let best=null,bestScore=Infinity;
+    for(const j of joints){
+      const v=at(j.bone).sub(position),length=v.length(),along=v.dot(direction);
+      const error=v.addScaledVector(direction,-along).length();
+      const valid=length<.24 || (along>0&&error<Math.max(.055,along*.035));
+      if(!valid)continue;
+      const score=length<.24?length:1+error+along*.007;
+      const adjusted=score/(j.isIK?1.13:1);
+      if(adjusted<bestScore){best=j;bestScore=adjusted;}
+    }
+    return best;
+  }
+  function startXR(controller,index){
+    if(!enabled)return;
+    const j=nearestXR(controller);
+    if(!j)return;
+    choose(j);
+    const a=worldAim(controller),t=targets.get(j.name);
+    const s={j,t,startPos:a.position,startDir:a.direction,
+      startQuat:a.quat,startBoneWorld:j.bone.getWorldQuaternion(Q()),
+      startValues:[...j.offsets],
+      startGoal:at(j.bone),
+      reach:Math.max(.7,at(j.bone).distanceTo(a.position))};
+    activeXR.set(index,s);
+    onStatus?.(t
+      ?j.name+': move your controller UP/DOWN/LEFT/RIGHT, nearer or farther, or aim remotely. Release TRIGGER to keep the position. Animation continues.'
+      :j.name+': twist your wrist to adjust bounded rotation. Animation continues.');
+  }
+  function updateXR(){
+    if(!enabled||!renderer.xr.isPresenting)return;
+    for(const [index,s] of activeXR){
+      const a=worldAim(xrControllers[index]);
+      const diff=a.position.sub(s.startPos);
+      const rayDiff=a.direction.sub(s.startDir);
+      if(s.t){
+        const goal=s.startGoal.clone().add(diff).addScaledVector(rayDiff,s.reach*.75);
+        setTarget(s.t,goal);
+      } else {
+        const delta=a.quat.multiply(s.startQuat.clone().invert());
+        const local=s.startBoneWorld.clone().invert().multiply(delta).multiply(s.startBoneWorld);
+        if(s.j.hinge){
+          setAngles(s.j,[s.startValues[0]+angleAxis(local,s.j.axis),0,0]);
+        }else{
+          const e=new THREE.Euler().setFromQuaternion(local,'XYZ');
+          setAngles(s.j,[s.startValues[0]+e.x/D,
+            s.startValues[1]+e.y/D,s.startValues[2]+e.z/D]);
+        }
+      }
+    }
+  }
+  const callbacks=xrControllers.map((c,i)=>{
+    const start=()=>startXR(c,i),end=()=>activeXR.delete(i);
+    c.addEventListener('selectstart',start);
+    c.addEventListener('selectend',end);
+    return {c,start,end};
+  });
+  function cursorWorld(x,y,plane) {
+    const raycaster=new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(2*x/innerWidth-1,1-2*y/innerHeight),camera);
+    return raycaster.ray.intersectPlane(plane,V());
+  }
+  const down=e=>{
+    if(!enabled||renderer.xr.isPresenting||e.button!==0)return;
+    const j=nearestPixel(e.clientX,e.clientY);if(!j)return;
+    e.preventDefault();e.stopImmediatePropagation();choose(j);
+    const t=targets.get(j.name);
+    if(t){
+      const goal=at(j.bone);
+      const normal=camera.getWorldDirection(V()).normalize();
+      const plane=new THREE.Plane().setFromNormalAndCoplanarPoint(normal,goal);
+      const pointer=cursorWorld(e.clientX,e.clientY,plane);
+      dragging={j,t,startGoal:goal,startPointer:pointer,plane,
+        startY:e.clientY,startX:e.clientX};
+    } else {
+      dragging={j,t:null,startX:e.clientX,startY:e.clientY,angles:[...j.offsets]};
+    }
+    dragCallback(true);
+  };
+  const move=e=>{
+    if(!dragging||renderer.xr.isPresenting)return;
+    const s=dragging,dx=e.clientX-s.startX,dy=e.clientY-s.startY;
+    if(s.t){
+      const desired=s.startGoal.clone();
+      if(e.shiftKey){
+        const forward=camera.getWorldDirection(V()).normalize();
+        const side=V().set(1,0,0).applyQuaternion(camera.getWorldQuaternion(Q()));
+        desired.addScaledVector(side,dx*.008).addScaledVector(forward,dy*.012);
+      }else{
+        const position=cursorWorld(e.clientX,e.clientY,s.plane);
+        if(position&&s.startPointer)desired.add(position.sub(s.startPointer));
+      }
+      setTarget(s.t,desired);
+    }else{
+      const j=s.j,a=s.angles;
+      setAngles(j,j.hinge?[a[0]-dy*.5,0,0]:
+        [a[0]-dy*.32,a[1]+dx*.32,a[2]]);
+    }
+    e.preventDefault();
+  };
+  const end=()=>{if(dragging){dragging=null;dragCallback(false);}};
+  renderer.domElement.addEventListener('pointerdown',down,true);
+  window.addEventListener('pointermove',move);
+  window.addEventListener('pointerup',end);
+  notify();
+  return {
+    boneCount:allBones.length,skinnedMeshCount:meshes.length,
+    jointCount:joints.length,jointNames:joints.map(j=>j.name),
+    ikTargetNames:targetList.map(t=>t.name),
+    setDesktopDragging(fn){dragCallback=fn;},
+    setEnabled(value){enabled=!!value;if(!enabled){activeXR.clear();end();}},
+    setShowMarkers(value){showHandles=!!value;},
+    selectName(name){choose(jointMap.get(name));},
+    getSelected(){return {name:selected.name,hinge:selected.hinge,
+      limits:selected.limits,values:[...selected.offsets],ik:targets.has(selected.name)};},
+    changeSelected(axis,value){
+      const a=[...selected.offsets];a[axis]=value;setAngles(selected,a);
+    },
+    prepareFrame(){
+      // Prevent repeated IK rotation from accumulating on top of the next
+      // animation frame, including clips with incomplete bone channels.
+      for(const b of allBones)b.quaternion.copy(rest.get(b));
+    },
+    update(){
+      if(!root.parent)return;
+      root.updateWorldMatrix(true,true);
+      // Capture original live animated end positions *before* IK.
+      for(const t of targetList)t.baseLocal.copy(worldToRoot(at(t.end)));
+      updateXR();
+      applyTargets();
+      applyAngleEdits();
+      for(const j of joints){
+        j.marker.visible=enabled&&showHandles;
+        if(!j.marker.visible)continue;
+        j.marker.position.copy(at(j.bone));
+        j.marker.scale.setScalar(j===selected?1.55:j.isIK?1.2:.8);
+        j.marker.material.opacity=j===selected?1:j.isIK?.85:.53;
+      }
+    },
+    resetPose(){
+      activeXR.clear();end();
+      for(const t of targetList)t.offset.set(0,0,0);
+      for(const j of joints){j.offsets=[0,0,0];j.manual=false;}
+      notify();onStatus?.('IK targets and joint edits cleared; the original animation keeps playing.');
+    },
+    dispose(){
+      activeXR.clear();end();
+      for(const {c,start,end:release} of callbacks){
+        c.removeEventListener('selectstart',start);
+        c.removeEventListener('selectend',release);
+      }
+      renderer.domElement.removeEventListener('pointerdown',down,true);
+      window.removeEventListener('pointermove',move);
+      window.removeEventListener('pointerup',end);
+      for(const j of joints){scene.remove(j.marker);j.marker.material.dispose();}
+      sphere.dispose();
+    }
+  };
+}

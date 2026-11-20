@@ -149,51 +149,79 @@ function installObject(root,label='Object') {
   if(physics)physics.attachModel(modelSize);
   setStatus(label+' loaded. '+(poseLayer?.boneCount||0)+' bones, '+(poseLayer?.ikTargetNames?.length||0)+' moveable IK targets, '+clips.length+' animation clip(s). Pull hand/foot/head joint markers to reposition the limbs while the idle animation CONTINUES.');
 }
-function loadObject(url,filename) {
+// Local and hosted FBX loading share the same loader. The published model is
+// fetched straight from the repository, so the Pages asset deployment delay
+// (or an unsupported HEAD response) cannot block the model.
+const RAW_ORC_URL='https://raw.githubusercontent.com/mikkk111/vr/main/objects/orc-idle/assets/Orc%20Idle.fbx';
+let loadSequence=0;
+function loadObject(url,filename,{fallback=null,source='device'}={}) {
+  const sequence=++loadSequence;
   const extension=(filename.split(/[?#]/)[0].split('.').pop()||'').toLowerCase();
   const revoke=url.startsWith('blob:');
+  const release=()=>{if(revoke)URL.revokeObjectURL(url);};
   const done=loaded=>{
-    try{installObject(loaded.scene||loaded,filename);}
-    catch(error){console.error(error);setStatus('Object import failed: '+error.message);}
-    finally{if(revoke)URL.revokeObjectURL(url);}
+    if(sequence!==loadSequence){release();return;}
+    try{
+      installObject(loaded.scene||loaded,filename);
+      setStatus(filename+' loaded from '+source+'. '+
+        (poseLayer?.boneCount||0)+' bones; idle animation and joint controls ready.');
+    }catch(error){
+      console.error('FBX scene installation failed:',error);
+      setStatus('FBX parsed, but scene setup failed: '+error.message);
+    }finally{release();}
   };
   const failed=error=>{
-    console.error('Object import failed',error);
-    setStatus('Object import failed. Use a self-contained GLB for reliable textures and materials.');
-    if(revoke)URL.revokeObjectURL(url);
+    release();
+    if(sequence!==loadSequence)return;
+    const reason=error?.message||String(error);
+    console.error('Model load failed ('+source+'):',url,error);
+    if(fallback){
+      setStatus('Could not load from '+source+' ('+reason+'). Trying the GitHub Pages copy…');
+      loadObject(fallback,filename,{source:'GitHub Pages'});
+    }else{
+      setStatus('Could not load '+filename+' from '+source+': '+reason+
+        '. Use the Upload FBX button above, or check the browser developer console.');
+    }
   };
-  setStatus(revoke
-    ? 'Opening '+filename+' locally. Your selected file remains on this device.'
-    : 'Loading '+filename+' from your published GitHub Pages assets…');
-  if(extension==='glb'||extension==='gltf')glbLoader.load(url,done,undefined,failed);
-  else if(extension==='obj')objLoader.load(url,done,undefined,failed);
-  else if(extension==='fbx')fbxLoader.load(url,done,undefined,failed);
-  else failed(new Error('Unsupported extension '+extension+'. Convert to GLB.'));
+  const progress=event=>{
+    if(sequence!==loadSequence)return;
+    if(event.lengthComputable && event.total>0){
+      const pct=Math.min(100,Math.round(100*event.loaded/event.total));
+      setStatus('Downloading '+filename+' from '+source+': '+pct+'% ('+
+        (event.loaded/1048576).toFixed(1)+' MB / '+(event.total/1048576).toFixed(1)+' MB).');
+    }else if(event.loaded){
+      setStatus('Downloading '+filename+' from '+source+': '+
+        (event.loaded/1048576).toFixed(1)+' MB received…');
+    }
+  };
+  setStatus('Connecting to '+source+' for '+filename+'…');
+  if(extension==='glb'||extension==='gltf')glbLoader.load(url,done,progress,failed);
+  else if(extension==='obj')objLoader.load(url,done,progress,failed);
+  else if(extension==='fbx')fbxLoader.load(url,done,progress,failed);
+  else failed(new Error('Unsupported model extension '+extension));
 }
-const initialModel=OBJECT_CONFIG.modelUrl;
-if(typeof initialModel==='string'&&initialModel.trim()){
-  // A missing remote asset should NOT prevent the user loading a local FBX.
-  // HEAD avoids downloading an entire 31+ MB FBX just to discover a 404.
-  setStatus('Checking published Orc asset… The local file picker is available.');
-  fetch(initialModel,{method:'HEAD',cache:'no-store'}).then(response=>{
-    if(response.ok)loadObject(initialModel,decodeURIComponent(initialModel.split('/').pop()));
-    else if(!avatar)setStatus('Orc Idle.fbx is not yet published. Select the FBX locally, or commit and Push origin in GitHub Desktop.');
-  }).catch(error=>{
-    console.warn('Could not check published model:',error);
-    if(!avatar)setStatus('Cannot check hosted model. Choose your FBX with the upload button to open it locally.');
+function loadHostedOrc() {
+  // GitHub's raw-file host supports CORS and avoids any dependency on Pages
+  // publishing the 31.8 MB FBX before the website can use it.
+  loadObject(RAW_ORC_URL,'Orc Idle.fbx',{
+    source:'GitHub repository',fallback:OBJECT_CONFIG.modelUrl
   });
-}else{
-  setStatus('Orc editor ready. Select Orc Idle.fbx to import it locally.');
 }
+if(typeof OBJECT_CONFIG.modelUrl==='string' && OBJECT_CONFIG.modelUrl.trim()){
+  loadHostedOrc();
+}else{
+  setStatus('Orc editor ready. Use the Upload button to select Orc Idle.fbx.');
+}
+$('loadHosted').addEventListener('click',loadHostedOrc);
 $('assetFile').addEventListener('change',event=>{
   const file=event.target.files?.[0];
   if(!file)return;
   const ext=file.name.split('.').pop().toLowerCase();
   if(!['glb','obj','fbx'].includes(ext)){
-    setStatus('Please choose a .glb, .obj or .fbx file. GLB is recommended.');
+    setStatus('Please choose a .glb, .obj or .fbx file.');
     return;
   }
-  loadObject(URL.createObjectURL(file),file.name);
+  loadObject(URL.createObjectURL(file),file.name,{source:'your device'});
   event.target.value='';
 });
 

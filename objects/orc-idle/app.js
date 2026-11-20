@@ -147,7 +147,7 @@ function installObject(root,label='Object') {
   modelAnchor.position.set(0,Math.max(0.4,Math.min(1.6,dimensions.y/2)),-2);
   modelSize=dimensions;
   if(physics)physics.attachModel(modelSize);
-  setStatus(label+' loaded. '+(poseLayer?.boneCount||0)+' bones, '+(poseLayer?.ikTargetNames?.length||0)+' moveable IK targets, '+clips.length+' animation clip(s). Pull hand/foot/head joint markers to reposition the limbs while the idle animation CONTINUES.');
+  setStatus(label+' loaded. '+(poseLayer?.boneCount||0)+' bones, '+(poseLayer?.ikTargetNames?.length||0)+' moveable IK targets, '+clips.length+' animation clip(s). Aim directly at arms, legs, hands or head, hold TRIGGER to pose without visible joint balls. Animation continues.');
 }
 // Local and hosted FBX loading share the same loader. The published model is
 // fetched straight from the repository, so the Pages asset deployment delay

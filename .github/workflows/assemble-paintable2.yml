@@ -34,8 +34,7 @@ jobs:
           if any(p.stat().st_size != n for p,n in zip(parts,sizes)):
               raise SystemExit('ERROR: Compressed model part length mismatch')
           packed=b''.join(p.read_bytes() for p in parts)
-          if len(packed)!=5678468 or hashlib.sha256(packed).hexdigest()!='d2f75abf':
-              # Replaced before commit with the exact local compressed checksum.
+          if len(packed)!=5678468 or hashlib.sha256(packed).hexdigest()!='8b53d04b50cf9555b9d0bf1dd1ae6ecd43309126db981ec57508488d718d7e19':
               raise SystemExit('ERROR: compressed transfer checksum mismatch')
           data=lzma.decompress(packed,format=lzma.FORMAT_XZ)
           if len(data)!=13708348 or hashlib.sha256(data).hexdigest()!='573c31b2309b0f5555ac8a300063f5aded1b55fea24e91c741ecfd8fea15c274':

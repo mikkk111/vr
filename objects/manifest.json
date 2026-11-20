@@ -80,6 +80,17 @@
       "modelPath": "./objects/trellis-20261120-203304/assets/trellis_20261120-203304-746854.glb",
       "description": "Textured Trellis female figure; normalized Z-up model shown upright in the Zelda v13 Quest 3 passthrough environment.",
       "status": "ready"
+    },
+    {
+      "id": "heidi",
+      "title": "Heidi",
+      "url": "./objects/heidi/",
+      "modelPath": "./objects/heidi/assets/heidi.glb",
+      "description": "Full-resolution textured Heidi model with Zelda v13 Quest 3 passthrough controls; original model by jamray747 (CC BY 4.0).",
+      "author": "jamray747",
+      "license": "CC BY 4.0",
+      "sourceUrl": "https://sketchfab.com/3d-models/heidi-719b33ba7bb44203ab4ad1bc9872bb74",
+      "status": "pending"
     }
   ]
 }

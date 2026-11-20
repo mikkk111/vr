@@ -1,0 +1,90 @@
+name: Assemble Heidi original GLB
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'objects/heidi/assets/upload/**'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: heidi-original-glb-publish
+  cancel-in-progress: false
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconstruct and verify original Heidi GLB
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, lzma, struct
+          base=Path('objects/heidi/assets')
+          names=[base/'upload'/f'heidi.glb.xz.part{i:03d}' for i in range(23)]
+          expected=[1048576]*22+[611728]
+          if any(not p.is_file() or p.stat().st_size!=n for p,n in zip(names,expected)):
+              raise SystemExit('ERROR: missing/invalid Heidi transfer part(s)')
+          compressed=b''.join(p.read_bytes() for p in names)
+          if len(compressed)!=23680400 or hashlib.sha256(compressed).hexdigest()!='572777cf20393b2c04e537f454b9f63845859eb2fdaa04602050a2a9159a41ac':
+              raise SystemExit('ERROR: compressed Heidi checksum/length mismatch')
+          data=lzma.decompress(compressed,format=lzma.FORMAT_XZ)
+          if len(data)!=62871216 or hashlib.sha256(data).hexdigest()!='f8bbb4d3e71e93c6e3eb1d16a75fe4e0c5a1139479d554ededfef544f661219b':
+              raise SystemExit('ERROR: reconstructed Heidi differs from exact original')
+          if data[:4]!=b'glTF' or struct.unpack_from('<II',data,4)!=(2,len(data)):
+              raise SystemExit('ERROR: GLB header not valid')
+          jlen,jtype=struct.unpack_from('<II',data,12)
+          if jtype!=0x4e4f534a:raise SystemExit('ERROR: GLB JSON chunk missing')
+          doc=json.loads(data[20:20+jlen])
+          if len(doc.get('meshes',[]))!=17 or len(doc.get('materials',[]))!=1 or len(doc.get('images',[]))!=1:
+              raise SystemExit('ERROR: source mesh/material/texture counts changed')
+          primitives=[p for m in doc['meshes'] for p in m.get('primitives',[])]
+          if len(primitives)!=17:raise SystemExit('ERROR: expected exactly 17 primitives')
+          accessors=doc['accessors']
+          if sum(accessors[p['indices']]['count'] for p in primitives)!=5972142:
+              raise SystemExit('ERROR: expected index count missing')
+          if sum(accessors[p['attributes']['POSITION']]['count'] for p in primitives)!=1066282:
+              raise SystemExit('ERROR: expected vertex count missing')
+          if any(not {'POSITION','NORMAL','TEXCOORD_0'}.issubset(p['attributes']) for p in primitives):
+              raise SystemExit('ERROR: source UV/normal/position missing')
+          if doc.get('skins') or doc.get('animations'):
+              raise SystemExit('ERROR: unexpected rig or animation')
+          image=doc['images'][0]
+          if image.get('mimeType')!='image/jpeg' or 'bufferView' not in image:
+              raise SystemExit('ERROR: embedded source image missing')
+          view=doc['bufferViews'][image['bufferView']]
+          if view['byteLength']!=4846261:raise SystemExit('ERROR: image length changed')
+          bin_len,bin_type=struct.unpack_from('<II',data,20+jlen)
+          if bin_type!=0x004e4942:raise SystemExit('ERROR: GLB binary data missing')
+          offset=20+jlen+8+view.get('byteOffset',0)
+          if data[offset:offset+3]!=bytes.fromhex('ffd8ff'):
+              raise SystemExit('ERROR: embedded JPEG signature invalid')
+          target=base/'heidi.glb'
+          if target.exists() and target.read_bytes()!=data:
+              raise SystemExit('ERROR: refusing overwrite of different model')
+          target.write_bytes(data)
+          catalogue=Path('objects/manifest.json')
+          manifest=json.loads(catalogue.read_text())
+          found=[o for o in manifest['objects'] if o.get('id')=='heidi']
+          if len(found)!=1 or found[0].get('modelPath')!='./objects/heidi/assets/heidi.glb':
+              raise SystemExit('ERROR: Heidi catalogue entry missing/incorrect')
+          found[0]['status']='ready'
+          catalogue.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
+          print('PASS: original Heidi verified - 62,871,216 bytes, 1,990,714 triangles, 1,066,282 vertices, embedded 4096px JPEG.')
+          PY
+      - name: Atomically publish GLB and remove transfer chunks
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add objects/heidi/assets/heidi.glb objects/manifest.json
+          git rm -r --ignore-unmatch -q objects/heidi/assets/upload
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publish verified full-resolution Heidi GLB'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi

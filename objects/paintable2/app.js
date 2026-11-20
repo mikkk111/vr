@@ -4,7 +4,7 @@ import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGrabPhysics } from '../../shared/zelda-v13/physics-grab.js?v=template-1';
-import { OBJECT_CONFIG } from './config.js?v=paintable2-rig-1';
+import { OBJECT_CONFIG } from './config.js?v=paintable2-rig-2';
 import { createPaintablePose } from './pose-controls.js?v=paintable2-rig-1';
 
 const $ = (id) => document.getElementById(id);

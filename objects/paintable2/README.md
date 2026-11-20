@@ -16,3 +16,12 @@ Updated with a 24-bone, Y-up humanoid rig, from the user's Paintable2.glb.
 - Structural skinning and synthetic arm deformation tested offline; real Quest 3/controller testing not performed
 
 This is a **procedural first-pass anatomical skin rig**, not manual weight-painting in Blender. Further visual deformation cleanup may be needed around shoulders, elbows, hips and knees.
+
+## Rig weight correction — v2, 20 November 2026
+
+The initial procedural weights erroneously assigned torso/pelvis influence to wrist/hand vertices, creating stretched membranes and needle-like strands when posing arms.
+Rebuilt from the original Paintable2.glb with skeleton-proximity arm masks and distal arm isolation. The 24-bone hierarchy, original geometry, UVs, 9 materials and 10 textures remain preserved. The previous Paintable2-rigged.glb is retained for comparison; the active model is Paintable2-rigged-v2.glb.
+
+GLB SHA-256: 51430f7115516d9b19e0bb78a3f140f0c5d0d458d178e18bf201f48ba0d65593
+
+Offline deformation regression: under a combined ~69° shoulder and ~57° elbow bend on each arm, the old mesh had >5× edge stretching on ~1.15% of edges; the v2 sample had none. Procedural posing still requires visual and physical Quest testing.

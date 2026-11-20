@@ -78,7 +78,16 @@ export function createOrcPose({renderer,scene,root,camera,onStatus,onPoseStart,o
         const rot=new THREE.Euler().setFromQuaternion(base,'XYZ');
         const degrees=[rot.x/D,rot.y/D,rot.z/D];
         for(let i=0;i<3;i++)degrees[i]=clamp(degrees[i]+j.values[i],j.limits[i]);
-        j.bone.quaternion.copy(j.bind).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(...degrees.map(x=>x*D),'XYZ')));
+        // Clamp the COMBINED three-axis swing as well: independent axis
+        // limits alone can still compose to an implausible 180° rotation.
+        const proposed=new THREE.Quaternion().setFromEuler(new THREE.Euler(...degrees.map(x=>x*D),'XYZ'));
+        const cap=/UpLeg|Arm/.test(j.name)?105:/Head|Neck/.test(j.name)?55:/Hand|Foot/.test(j.name)?70:50;
+        const angle=new THREE.Quaternion().angleTo(proposed);
+        if(angle>cap*D){
+          const full=proposed.clone();
+          proposed.identity().slerp(full,(cap*D)/angle);
+        }
+        j.bone.quaternion.copy(j.bind).multiply(proposed);
       }
     }
     root.updateWorldMatrix(true,true);

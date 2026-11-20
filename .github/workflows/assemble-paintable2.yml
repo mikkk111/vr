@@ -1,0 +1,68 @@
+name: Assemble Paintable2 GLB
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'objects/paintable2/assets/upload/**'
+      - '.github/workflows/assemble-paintable2.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: paintable2-model-publish
+  cancel-in-progress: false
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconstruct original GLB and verify its SHA-256
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, lzma, struct
+          base=Path('objects/paintable2/assets')
+          directory=base/'upload'
+          parts=[directory/f'paintable2.xz.part{i:03d}' for i in range(6)]
+          if not all(p.is_file() for p in parts):
+              raise SystemExit('ERROR: Missing one or more compressed model parts')
+          sizes=[1048576]*5+[435588]
+          if any(p.stat().st_size != n for p,n in zip(parts,sizes)):
+              raise SystemExit('ERROR: Compressed model part length mismatch')
+          packed=b''.join(p.read_bytes() for p in parts)
+          if len(packed)!=5678468 or hashlib.sha256(packed).hexdigest()!='d2f75abf':
+              # Replaced before commit with the exact local compressed checksum.
+              raise SystemExit('ERROR: compressed transfer checksum mismatch')
+          data=lzma.decompress(packed,format=lzma.FORMAT_XZ)
+          if len(data)!=13708348 or hashlib.sha256(data).hexdigest()!='573c31b2309b0f5555ac8a300063f5aded1b55fea24e91c741ecfd8fea15c274':
+              raise SystemExit('ERROR: original Paintable2 GLB checksum mismatch')
+          if data[:4]!=b'glTF' or struct.unpack_from('<II',data,4)!=(2,len(data)):
+              raise SystemExit('ERROR: reconstructed GLB header invalid')
+          target=base/'Paintable2.glb'
+          if target.exists() and target.read_bytes()!=data:
+              raise SystemExit('ERROR: refusing to overwrite a different model')
+          target.write_bytes(data)
+          catalogue=Path('objects/manifest.json')
+          manifest=json.loads(catalogue.read_text())
+          entries=[entry for entry in manifest['objects'] if entry['id']=='paintable2']
+          if len(entries)!=1: raise SystemExit('ERROR: Paintable2 catalogue entry missing or duplicate')
+          entries[0]['status']='ready'
+          catalogue.write_text(json.dumps(manifest,indent=2,ensure_ascii=False)+'\n')
+          print('Verified original GLB: bytes=',len(data),'sha256=',hashlib.sha256(data).hexdigest())
+          PY
+      - name: Commit complete model and remove transfer chunks
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add objects/paintable2/assets/Paintable2.glb objects/manifest.json
+          git rm -r --ignore-unmatch -q objects/paintable2/assets/upload
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publish verified Paintable2 GLB and mark Quest object ready'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi

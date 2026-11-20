@@ -1,38 +1,38 @@
-# Orc Idle — Quest 3 FBX rig editor v2 (live animation + spatial IK)
+# Orc Idle — Free Pose v3 (20 November 2026)
 
-**Published source**: `objects/orc-idle/index.html` in `mikkk111/vr`.
-**Website path**: https://mikkk111.github.io/vr/objects/orc-idle/
-**Model**: local browser import (FBX/GLB). Does not require a model binary on GitHub.
+**Site:** https://mikkk111.github.io/vr/objects/orc-idle/
 
-## Version 2 — 20 November 2026
+**Model:** `objects/orc-idle/assets/Orc Idle.fbx` (hosted and automatically loaded; local file upload is still supported).
 
-Fixes two original shortcomings:
+## Latest correction
 
-1. **Spatial end-effector movement**. Quest TRIGGER on green handles now moves the target in full 3D via physical controller position plus remote pointing. Desktop drag moves the marker in the camera plane; Shift-drag adjusts depth. For left/right wrists and ankles, a two-bone analytical IK solver rotates shoulder/hip and elbow/knee, keeping bone lengths intact. Elbow/knee markers also support one-bone repositioning. Head uses `Spine2 → Neck → Head`.
-2. **Nonstop idle animation**. Selecting/dragging bones no longer calls the animation pause function. Every frame, the system restores edited bones' base rig state, advances the imported FBX AnimationMixer, computes each animated target position and adds stored avatar-local target offsets, then solves the pose. This keeps the authored animation playing under the adjusted posture rather than locking the entire clip.
+The earlier v2 pose layer had **three separate and harmful constraints**:
 
-Other bones remain available through limited rotation sliders, and Quest wrist twist on their trigger markers. The explicit **Pause animation** button still works. Posing does not unpause a user-paused clip.
+1. `t.offset.copy(desired).sub(t.baseLocal).clampLength(0,2.0)` stopped each end-effector offset after two FBX-local units, even though the source mesh can have arbitrary unit scale.
+2. `maxAngles()`, per-axis `JOINT_LIMITS`, and quaternion caps limited the reachable directions of arms, legs and head.
+3. Knees and elbows could be projected onto a single calibrated axis during manual rotation, interfering with free limb posing.
 
-## Architecture and constraints
+**v3 removes all three.** Target offsets are stored in original model coordinates with no artificial distance cap. The analytical two-bone IK solver works in WORLD metres, rotates its joints through the full orientation range, and only clamps an end-effector target to the true reachable distance of its existing bones. It NEVER changes bone lengths or skin weights.
 
-- `app.js` owns model loading, Mixer and scene setup; calls `poseLayer.prepareFrame()`, then `mixer.update(dt)`, then `poseLayer.update()`.
-- `pose-ik.js` owns Quest select/TRIGGER and desktop dragging, local-space target offsets, skeletal pose overlay and markers.
-- `ik-solver.js` performs position-based two-bone analytic IK with natural poles calibrated from the imported FBX limb geometry; one-bone aiming; joint rotation caps and hinge projection.
-- `pose-controls.js` is retained as the former v1 experimental implementation, but **is no longer imported**.
-- `../../shared/zelda-v13/physics-grab.js` remains untouched, preserving the original v13 whole-model grip, distant aiming, linear 10%–350% two-handed scale, position freeze and thumbstick controls.
+Each bone has free pitch, yaw and roll controls, with UI sliders covering −180° to +180° per axis (the complete Euler orientation range). Controller rotation adjusts orientation independently from physical controller translation and pointing direction.
 
-**Joint limits are approximations**, not a collision-aware human biomechanics simulation. Reach targets are clamped to chain lengths, with rotations limited to a fraction of a turn; no bone translation or skin-weight changes occur. Rigging cannot bend missing fingers (the inspected FBX has only index-finger chains).
+## Using Quest 3 controllers
 
-## Technical verification and limits
+- **Side grip:** Original Zelda VR v13 whole-character grab, remote aiming, wrist rotation, joystick movement, linear two-hand resizing 10%–350%, and frozen position when released. The shared physics engine remains unchanged.
+- **Trigger:** Aim directly at the visible skin (no coloured balls), hold trigger, and physically move the controller or change its pointing direction to move the selected hand, foot, elbow, knee or head. Release trigger to retain the new target offset. Twist wrist while holding trigger to change the joint's orientation.
+- **Desktop:** Click the skinned arm, leg, hand, foot or head. Drag to change position; Shift+drag moves depth. Select any existing bone in the dropdown for free three-axis rotation.
+- **Animation:** Source `AnimationMixer` continues every frame, then the IK and freely set local bone rotations are applied as additive posing. No animation pause occurs automatically.
 
-Original attached file was inspected as binary FBX 7700, 31,838,656 bytes, with 34 Model records (one mesh and 33 limb/model nodes), one geometry, and one AnimationStack in the FBX binary hierarchy. Rig hierarchy includes `Spine2→Neck→Head`, `LeftArm→LeftForeArm→LeftHand`, `LeftUpLeg→LeftLeg→LeftFoot`, and their right-side equivalents.
+## Architecture
 
-Live GitHub source and JS syntax checks were performed, including link paths, page IDs, controller import and manifest. **The app has not been tested on physical Quest 3 hardware, nor has live in-headset motion been verified.** An FBX file imported directly from a user's device is not persistently uploaded to the server, and GitHub Pages publication may lag Git commit availability.
+- `index.html`: UI with file upload, force-reload hosted model, free posing sliders and WebXR button.
+- `app.js`: source FBX loading, world-model controller integration, live animation loop; versioned source imports.
+- `pose-ik.js`: skinned-mesh ray selection, XR and mouse movement, scale-independent target offset, animation overlay.
+- `ik-solver.js`: unrestricted two-bone endpoint targeting with real bone lengths and no arbitrary joint angle limits.
+- `../../shared/zelda-v13/physics-grab.js`: unmodified shared Quest grab controller.
 
-## Usage
+## Verification boundaries
 
-1. Open HTTPS page on Quest Browser or desktop; upload `Orc Idle.fbx` with the file chooser.
-2. Let the idle clip play. To move an arm in VR, point at the **green hand marker**, hold the trigger and move the controller in any direction. Release to keep the position while the clip continues.
-3. Do the same at a green foot, elbow, knee or head marker. Use purple/amber markers for constrained wrist-twist rotations.
-4. For desktop, click and drag markers, Shift-drag for depth, select bones and tweak sliders.
-5. **Reset joints** removes target offsets and rotations; **Reset view + character** also repositions the whole model and restarts its animation.
+The exact uploaded FBX binary in GitHub has blob SHA `0170ce867720cc60bad9b02c66e3f1f07e259882`. Its inspected skeleton contains `LeftArm → LeftForeArm → LeftHand` and `LeftUpLeg → LeftLeg → LeftFoot`, with right-side equivalents. JavaScript and DOM-interface checks are source-level only; no physical Quest 3 verification is claimed.
+
+The app does not simulate self-collision, tissue constraints or automatic foot planting. Some goals are geometrically unreachable unless the original bone lengths are stretched; this editor intentionally preserves source bone lengths.

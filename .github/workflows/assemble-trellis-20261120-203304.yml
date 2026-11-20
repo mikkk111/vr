@@ -1,0 +1,70 @@
+name: Assemble Trellis 20 November 2026 GLB
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'objects/trellis-20261120-203304/assets/upload/**'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: trellis-20261120-203304-publish
+  cancel-in-progress: false
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconstruct GLB; verify exact original
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, lzma, struct
+          base=Path('objects/trellis-20261120-203304/assets')
+          parts=[base/'upload'/f'trellis_20261120-203304-746854.glb.xz.part{i:03d}' for i in range(13)]
+          expected=[1048576]*12+[941460]
+          if any(not p.is_file() or p.stat().st_size!=n for p,n in zip(parts,expected)):
+              raise SystemExit('ERROR: missing or incorrectly sized GLB upload chunk')
+          zipped=b''.join(p.read_bytes() for p in parts)
+          if len(zipped)!=13524372 or hashlib.sha256(zipped).hexdigest()!='db138659392c5ec02d325cdaed03232f21e3b30f99b0fb022274347e322f52db':
+              raise SystemExit('ERROR: compressed transfer checksum mismatch')
+          data=lzma.decompress(zipped,format=lzma.FORMAT_XZ)
+          if len(data)!=22415968 or hashlib.sha256(data).hexdigest()!='b41f9107a1b5f0eb5760b2950b4081cc960e8ecd68cd51ce9ac11a92bdba8dfa':
+              raise SystemExit('ERROR: original GLB checksum mismatch')
+          if data[:4]!=b'glTF' or struct.unpack_from('<II',data,4)!=(2,len(data)):
+              raise SystemExit('ERROR: reconstructed GLB header mismatch')
+          jlen,jtype=struct.unpack_from('<II',data,12)
+          if jtype!=0x4e4f534a:raise SystemExit('ERROR: GLB JSON chunk missing')
+          doc=json.loads(data[20:20+jlen])
+          prim=doc['meshes'][0]['primitives'][0]
+          if len(doc.get('images',[]))!=2 or doc['accessors'][prim['indices']]['count']!=1483269:
+              raise SystemExit('ERROR: unexpected 3D source geometry or textures')
+          target=base/'trellis_20261120-203304-746854.glb'
+          if target.is_file() and target.read_bytes()!=data:
+              raise SystemExit('ERROR: refusing overwrite of nonidentical existing GLB')
+          target.write_bytes(data)
+          path=Path('objects/manifest.json')
+          catalog=json.loads(path.read_text())
+          entries=[o for o in catalog['objects'] if o.get('id')=='trellis-20261120-203304']
+          if len(entries)!=1 or entries[0]['modelPath']!='./objects/trellis-20261120-203304/assets/trellis_20261120-203304-746854.glb':
+              raise SystemExit('ERROR: manifest entry missing or incorrect')
+          entries[0]['status']='ready'
+          path.write_text(json.dumps(catalog,ensure_ascii=False,indent=2)+'\n')
+          print('Source GLB verified exactly: 22,415,968 bytes SHA-256 b41f9107a1b5f0eb5760b2950b4081cc960e8ecd68cd51ce9ac11a92bdba8dfa')
+          PY
+      - name: Commit reconstructed binary and remove temporary parts
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add objects/trellis-20261120-203304/assets/trellis_20261120-203304-746854.glb objects/manifest.json
+          git rm -r --ignore-unmatch -q objects/trellis-20261120-203304/assets/upload
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publish checksum-verified Trellis 20 November GLB'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi

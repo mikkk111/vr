@@ -41,7 +41,19 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
   });
   if(!meshes.length)throw Error('A skinned humanoid FBX/GLB is required for IK posing.');
   root.updateWorldMatrix(true,true);
-  const bodyRight=V().set(1,0,0).applyQuaternion(root.getWorldQuaternion(Q()));
+  const rootWorldQ=root.getWorldQuaternion(Q());
+  const hips=bones.get('Hips'),neck=bones.get('Neck');
+  const leftHip=bones.get('LeftUpLeg'),rightHip=bones.get('RightUpLeg');
+  const bodyRight=leftHip&&rightHip
+    ?at(rightHip).sub(at(leftHip)).normalize()
+    :V().set(1,0,0).applyQuaternion(rootWorldQ);
+  if(bodyRight.lengthSq()<.1)bodyRight.set(1,0,0);
+  const bodyUp=hips&&neck
+    ?at(neck).sub(at(hips)).normalize()
+    :V().set(0,1,0).applyQuaternion(rootWorldQ);
+  if(bodyUp.lengthSq()<.1)bodyUp.set(0,1,0);
+  const bodyFront=V().crossVectors(bodyRight,bodyUp).normalize();
+  if(bodyFront.lengthSq()<.1)bodyFront.set(0,0,1);
   const sphere=new THREE.SphereGeometry(.018,10,8);
   const joints=[];
   for(const [name,bone] of bones){
@@ -66,10 +78,19 @@ export function createOrcIKPose({renderer,scene,root,camera,onStatus,onSelection
   const targetList=IK_DEFS.filter(d=>bones.has(d.name)&&bones.has(d.upper)&&
        (d.kind==='one'||bones.has(d.lower))).map(d=>{
     const parent=bones.get(d.upper),mid=d.lower?bones.get(d.lower):null,end=bones.get(d.name);
-    const fallback=mid
-      ?at(mid).sub(at(parent)).cross(at(end).sub(at(mid))).normalize()
-      :bodyRight.clone();
-    if(fallback.lengthSq()<1e-7)fallback.copy(bodyRight);
+    // The POLE is an elbow/knee displacement direction, NOT the normal to
+    // the bend plane. Derive it from the source rig whenever possible.
+    const p0=at(parent),p1=mid?at(mid):at(end),p2=at(end);
+    const line=p2.clone().sub(p0).normalize();
+    let fallback=p1.clone().sub(p0);
+    fallback.addScaledVector(line,-fallback.dot(line));
+    if(fallback.lengthSq()<1e-8)fallback=bodyFront.clone();
+    fallback.addScaledVector(line,-fallback.dot(line));
+    if(fallback.lengthSq()<1e-8)fallback.copy(bodyRight);
+    fallback.normalize();
+    // Store in avatar-local space so whole-object grabs/rotations do not
+    // double-transform the pole direction.
+    fallback.applyQuaternion(rootWorldQ.clone().invert());
     return {...d,upperBone:parent,lowerBone:mid,end,
       offset:V(),fallback,baseLocal:V()};
   });

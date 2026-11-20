@@ -1,7 +1,8 @@
-// Orc Idle — local-only FBX/GLB browser import, no file hosted.
-// No existing object files or Zelda v13 shared controller code are changed.
+// Orc Idle: attempt to load the original rigged FBX from this project's
+// published assets directory. If it hasn't been pushed yet, app.js keeps the
+// local browser-upload button available without an error scene.
 export const OBJECT_CONFIG = Object.freeze({
-  modelUrl: null,
+  modelUrl: './assets/Orc%20Idle.fbx',
   fitToView: true,
   targetLongestSideMetres: 1.72,
   initialYawRadians: 0,

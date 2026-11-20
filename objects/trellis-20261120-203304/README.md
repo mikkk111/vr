@@ -16,16 +16,19 @@
 ## Architecture
 Standalone page and per-object configuration. The viewer reuses the common `../../shared/zelda-v13/physics-grab.js` Zelda VR v13 controller engine. No shared control logic is modified. Quest 3 immersive-ar passthrough, grip/ray manipulation, zero gravity, two-handed resizing, wrist rotation, joysticks and freeze-on-release retained. Physical Quest 3 verification is still required.
 
-## Preferred publication: direct GitHub browser upload
-GitHub's browser upload limit is 25 MiB per individual file. The unchanged original is 22,415,968 bytes (21.38 MiB), so **no compression, splitting, format conversion or CLI is needed**.
+## Publication completed — 20 November 2026
 
-1. Download the original `trellis_20261120-203304-746854.glb` from this project's ChatGPT conversation.
-2. While signed in to GitHub with **write permission** for `mikkk111/vr`, open [the exact asset folder](https://github.com/mikkk111/vr/tree/main/objects/trellis-20261120-203304/assets).
-3. Choose **Add file → Upload files**; pick `trellis_20261120-203304-746854.glb` and commit directly to `main`.
-4. The dedicated [verification workflow](https://github.com/mikkk111/vr/actions/workflows/verify-trellis-20261120-203304.yml) checks size, full SHA-256, GLB 2.0 structure, mesh attributes, vertex/index counts and both embedded 2048 × 2048 PNGs. **Only if every test passes** does it mark the catalogue entry `ready`.
-5. Check `https://mikkk111.github.io/vr/objects/trellis-20261120-203304/` after the GitHub Pages deployment finishes. Physical Quest 3 manipulation testing is a separate step.
+The original **`trellis_20261120-203304-746854.glb`** was published automatically to GitHub using the verified, lossless 13-part binary bridge. No user-side upload, conversion, downsampling or geometry modification was required.
 
-Do not upload the compressed XZ archive or transfer ZIP into this folder; upload the **original `.glb` file**. No personal access tokens are required for GitHub's own web uploader. Do not change an existing object's files.
+- Reconstruction GitHub Actions run: https://github.com/mikkk111/vr/actions/runs/44818784842 — successful.
+- Published binary commit: https://github.com/mikkk111/vr/commit/4dec2a9834b9bea23f1748348d29ff100452cd81
+- Git blob SHA-1: `e435fcb30d7f1fb2a14fed689f927c2231451608` (matches the original source file).
+- Source SHA-256: `b41f9107a1b5f0eb5760b2950b4081cc960e8ecd68cd51ce9ac11a92bdba8dfa` (verified during reconstruction).
+- Catalogue: `ready`; temporary GitHub upload parts deleted after successful assembly.
+- GitHub Pages deployment for the published binary: successful. The actual Quest 3 headset has not been tested.
 
-## Alternative transfer retained for larger models
-The existing `.github/workflows/assemble-trellis-20261120-203304.yml` supports checksum-verified reconstruction from 13 XZ parts in `assets/upload/` if GitHub's 25 MiB browser limit is exceeded or a direct file upload cannot be used. This fallback is **not required** for the 22.4 MB original. Both processes must publish the same SHA-256 `b41f9107a1b5f0eb5760b2950b4081cc960e8ecd68cd51ce9ac11a92bdba8dfa`. Never mark the object ready before verifying the hosted binary.
+The tested upload workflow and future-object method are documented in [Verified model uploads](../../docs/BINARY_UPLOAD_METHOD.md).
+
+## Alternative publication methods
+
+For a different revision under 25 MiB, the repository owner may upload a GLB directly using GitHub's website, but **must** give it a new uniquely named object page unless explicitly replacing this object. The direct-upload verification workflow checks this exact source file before marking it ready. The original 13-part assembly Action is retained as a proven alternative for larger assets.

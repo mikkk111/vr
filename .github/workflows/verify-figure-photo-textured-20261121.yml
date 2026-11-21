@@ -43,7 +43,7 @@ jobs:
           image=obj['images'][0]
           view=obj['bufferViews'][image['bufferView']]
           image_off=bin_header_offset+8+view['byteOffset']
-          assert raw[image_off:image_off+8]==b'\\x89PNG\\r\\n\\x1a\\n', 'PNG signature missing'
+          assert raw[image_off:image_off+8]==b'\x89PNG\r\n\x1a\n', 'PNG signature missing'
           width,height=struct.unpack_from('>II',raw,image_off+16)
           assert (width,height)==(4096,4096), f'Colour texture dimensions changed: {width}x{height}'
           cat_path=Path('objects/manifest.json')
@@ -52,7 +52,7 @@ jobs:
           assert len(entry)==1, 'Unexpected catalogue registration count'
           assert entry[0]['modelPath']=='./objects/figure-photo-textured-20261121/assets/Figure_Photo_Textured.glb', 'Catalogue asset path mismatch'
           entry[0]['status']='ready'
-          cat_path.write_text(json.dumps(cat,ensure_ascii=False,indent=2)+'\\n')
+          cat_path.write_text(json.dumps(cat,ensure_ascii=False,indent=2)+'\n')
           print('Verified exact original GLB, mesh, embedded 4096 PNG, and manifest.')
           PY
       - name: Activate catalogue entry after validation

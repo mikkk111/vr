@@ -99,6 +99,14 @@
       "modelPath": "./objects/orc-idle/assets/Orc Idle.fbx",
       "description": "Hosted rigged Orc Idle FBX with automatic loading, uninterrupted idle animation, unrestricted three-axis limb posing, invisible skin picking and Meta Quest 3 passthrough; original Zelda v13 whole-object controls unchanged.",
       "status": "ready"
+    },
+    {
+      "id": "figure-photo-textured-20261121",
+      "title": "Figure Photo Textured",
+      "url": "./objects/figure-photo-textured-20261121/",
+      "modelPath": "./objects/figure-photo-textured-20261121/assets/Figure_Photo_Textured.glb",
+      "description": "Phototextured female figure with original 4096×4096 embedded skin image and Zelda v13 Quest 3 passthrough manipulation.",
+      "status": "pending"
     }
   ]
 }

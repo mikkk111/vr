@@ -1,0 +1,68 @@
+name: Verify and activate Figure Photo Textured
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'objects/figure-photo-textured-20261121/assets/Figure_Photo_Textured.glb'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: figure-photo-textured-20261121-publish
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify uploaded GLB and embedded texture
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, struct
+          model=Path('objects/figure-photo-textured-20261121/assets/Figure_Photo_Textured.glb')
+          assert model.is_file(), 'Model upload is missing'
+          raw=model.read_bytes()
+          assert len(raw)==24377568, f'Unexpected model size {len(raw)}'
+          assert hashlib.sha256(raw).hexdigest()=='633f94cc02a07cc675259b16caf5bcba102975eb91e68b16255160aa12ca1271', 'Checksum changed: refuse to mark ready'
+          assert raw[:4]==b'glTF' and struct.unpack_from('<II',raw,4)==(2,len(raw)), 'Invalid GLB header'
+          jlen,jtype=struct.unpack_from('<II',raw,12)
+          assert jtype==0x4E4F534A and 20+jlen<len(raw), 'GLB JSON chunk invalid'
+          obj=json.loads(raw[20:20+jlen])
+          prim=obj['meshes'][0]['primitives'][0]
+          assert obj['accessors'][prim['indices']]['count']==869826, 'Original face count changed'
+          assert len(obj['images'])==2 and obj['images'][0]['mimeType']=='image/png', 'Embedded texture missing'
+          assert not obj.get('skins') and not obj.get('animations'), 'Source unexpectedly modified'
+          bin_header_offset=20+jlen
+          blen,btype=struct.unpack_from('<II',raw,bin_header_offset)
+          assert btype==0x004E4942 and bin_header_offset+8+blen==len(raw), 'Invalid GLB binary chunk'
+          image=obj['images'][0]
+          view=obj['bufferViews'][image['bufferView']]
+          image_off=bin_header_offset+8+view['byteOffset']
+          assert raw[image_off:image_off+8]==b'\\x89PNG\\r\\n\\x1a\\n', 'PNG signature missing'
+          width,height=struct.unpack_from('>II',raw,image_off+16)
+          assert (width,height)==(4096,4096), f'Colour texture dimensions changed: {width}x{height}'
+          cat_path=Path('objects/manifest.json')
+          cat=json.loads(cat_path.read_text())
+          entry=[x for x in cat['objects'] if x.get('id')=='figure-photo-textured-20261121']
+          assert len(entry)==1, 'Unexpected catalogue registration count'
+          assert entry[0]['modelPath']=='./objects/figure-photo-textured-20261121/assets/Figure_Photo_Textured.glb', 'Catalogue asset path mismatch'
+          entry[0]['status']='ready'
+          cat_path.write_text(json.dumps(cat,ensure_ascii=False,indent=2)+'\\n')
+          print('Verified exact original GLB, mesh, embedded 4096 PNG, and manifest.')
+          PY
+      - name: Activate catalogue entry after validation
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add objects/manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Activate checksum-verified Figure Photo Textured model'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi

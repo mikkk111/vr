@@ -147,13 +147,13 @@ export function createRagdoll(J,fit){
     const result=cs.Create();if(!result.IsValid())throw Error('Compound table collision shape failed');const shape=result.Get();shape.AddRef();
     J.destroy(result);J.destroy(cs);J.destroy(p);J.destroy(q);for(const child of children)child.Release();return shape;
   }
-  function scaledTableShape(base,scale){const s=new J.Vec3(1/scale,1/scale,1/scale),shape=new J.ScaledShape(base,s);J.destroy(s);shape.AddRef();return shape;}
-  function installTable(parts,anchor,position=V(1.65,.015,-2.65)){
+  function scaledTableShape(base,scale){if(Math.abs(scale-1)<1e-7){base.AddRef();return base;}const s=new J.Vec3(1/scale,1/scale,1/scale),shape=new J.ScaledShape(base,s);J.destroy(s);shape.AddRef();return shape;}
+  function installTable(parts,anchor,position=V(.72,.012,-2.95)){
     if(table)throw Error('Table already installed');
     anchor.updateWorldMatrix(true,false);const scale=anchor.getWorldScale(V()).x,base=makeTableShape(parts),shape=scaledTableShape(base,scale);
     const p=rv(anchor.worldToLocal(position.clone())),q=jq(anchor.getWorldQuaternion(Q()).invert());
     const cs=new J.BodyCreationSettings(shape,p,q,J.EMotionType_Dynamic,1);J.destroy(p);J.destroy(q);
-    cs.mFriction=.78;cs.mRestitution=.04;cs.mLinearDamping=.12;cs.mAngularDamping=.65;cs.mMotionQuality=J.EMotionQuality_LinearCast;cs.mAllowSleeping=true;cs.mOverrideMassProperties=J.EOverrideMassProperties_CalculateInertia;const mp=cs.mMassPropertiesOverride;mp.mMass=42;cs.mMassPropertiesOverride=mp;
+    cs.mFriction=.78;cs.mRestitution=.04;cs.mLinearDamping=.12;cs.mAngularDamping=.65;cs.mMotionQuality=J.EMotionQuality_LinearCast;cs.mAllowSleeping=true;cs.mOverrideMassProperties=J.EOverrideMassProperties_CalculateInertia;const mp=cs.mMassPropertiesOverride;mp.mMass=32;cs.mMassPropertiesOverride=mp;
     const body=bi.CreateBody(cs);J.destroy(cs);if(!body)throw Error('Table body creation failed');bi.AddBody(body.GetID(),J.EActivation_Activate);
     table={body,base,shape,parts,scale,position:position.clone(),rotation:Q(),velocity:V(),angular:V(),framePosition:anchor.getWorldPosition(V()),frameRotation:anchor.getWorldQuaternion(Q())};
     return table;
@@ -163,7 +163,7 @@ export function createRagdoll(J,fit){
     anchor.updateWorldMatrix(true,false);const s=anchor.getWorldScale(V()).x,p=anchor.getWorldPosition(V()),q=anchor.getWorldQuaternion(Q());
     if(p.distanceToSquared(table.framePosition)<1e-12&&1-Math.abs(q.dot(table.frameRotation))<1e-12&&Math.abs(s-table.scale)<1e-7)return;
     const id=table.body.GetID(),inv=q.clone().invert();
-    if(Math.abs(s-table.scale)>=1e-7){const next=scaledTableShape(table.base,s);bi.SetShape(id,next,true,J.EActivation_Activate);table.shape.Release();table.shape=next;table.body.GetMotionProperties().ScaleToMass(42);}
+    if(Math.abs(s-table.scale)>=1e-7){const next=scaledTableShape(table.base,s);bi.SetShape(id,next,true,J.EActivation_Activate);table.shape.Release();table.shape=next;table.body.GetMotionProperties().ScaleToMass(32);}
     const pos=anchor.worldToLocal(table.position.clone()),rot=inv.clone().multiply(table.rotation),vel=table.velocity.clone().applyQuaternion(inv).divideScalar(s),ang=table.angular.clone().applyQuaternion(inv);
     pointTmp.Set(pos.x,pos.y,pos.z);rotTmp.Set(rot.x,rot.y,rot.z,rot.w);bi.SetPositionAndRotation(id,pointTmp,rotTmp,J.EActivation_Activate);
     const a=v(vel),b=v(ang);bi.SetLinearAndAngularVelocity(id,a,b);J.destroy(a);J.destroy(b);

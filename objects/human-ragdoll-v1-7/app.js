@@ -3,8 +3,8 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {ConvexGeometry} from 'three/addons/geometries/ConvexGeometry.js';
 import initJolt from 'https://cdn.jsdelivr.net/npm/jolt-physics@1.1.2/dist/jolt-physics.wasm-compat.js';
-import {createRagdoll} from './ragdoll.js?v=1.7';
-import {loadTable} from './table.js?v=1.7';
+import {createRagdoll} from './ragdoll.js?v=1.7.1';
+import {loadTable} from './table.js?v=1.7.1';
 import {createSecondary,defaults} from '../human-ragdoll-v1-5/secondary.js?v=1.5';
 import {createGrabPhysics} from '../../shared/zelda-v13/physics-grab-ragdoll.js?v=1.6';
 const $=id=>document.getElementById(id),status=s=>{$('status').textContent=s;console.log(s)},V=(x=0,y=0,z=0)=>new THREE.Vector3(x,y,z),Q=()=>new THREE.Quaternion(),UP=V(0,1,0);
@@ -24,7 +24,17 @@ const bones=mesh.skeleton.bones;if(bones.map(b=>b.name).join('|')!==fit.names.jo
 for(let i=0;i<bones.length;i++)if(bones[i].getWorldPosition(V()).distanceTo(V(...fit.rest[i]))>1e-4)throw Error('Bind position mismatch '+bones[i].name);
 const bindPos=bones.map(b=>b.position.clone()),bindQ=bones.map(b=>b.quaternion.clone());mesh.frustumCulled=false;anchor.add(gl.scene);
 let model=createRagdoll(J,fit),furniture=null;
-const tablePromise=loadTable().then(asset=>{model.installTable(asset.parts,anchor);furniture=asset;scene.add(asset.root);asset.root.position.copy(model.table.position);asset.root.quaternion.copy(model.table.rotation);$('tableStatus').textContent='Poly Haven table · '+asset.triangles+' triangles · 42 kg';$('dropTable').disabled=false;return asset;}).catch(e=>{$('tableStatus').textContent='Table unavailable: '+e.message;console.error(e);return null;});
+const tablePromise=loadTable().then(asset=>{
+  furniture=asset;scene.add(asset.root);asset.root.position.set(.72,.012,-2.95);asset.root.visible=true;
+  const label=asset.fallback?'Procedural backup table':'Poly Haven · original textured table';
+  $('tableStatus').textContent=label+' · '+asset.size.x.toFixed(2)+' m · '+asset.triangles+' triangles';
+  try{
+    model.installTable(asset.parts,anchor,asset.root.position.clone());asset.root.quaternion.copy(model.table.rotation);
+    $('tableStatus').textContent+=' · 32 kg · collision active';$('dropTable').disabled=false;
+  }catch(e){$('tableStatus').textContent+=' · collision error: '+e.message;console.error('TABLE COLLISION',e);}
+  if(asset.warning)console.warn('TABLE ASSET FALLBACK',asset.warning);
+  return asset;
+}).catch(e=>{$('tableStatus').textContent='Table loading error: '+e.message;console.error(e);return null;});
 const secondary=createSecondary(THREE,mesh,fit),motion={...defaults};
 const keys=['chest','hips','chestFirm','hipFirm','chestDamp','hipDamp','sag','contact','heft','bounce'];
 const profiles={subtle:{...defaults,chest:.65,hips:.6,chestFirm:.9,hipFirm:.95,chestDamp:.65,hipDamp:.68,sag:.45,contact:.6},natural:{...defaults},responsive:{...defaults,chest:2,hips:1.8,chestFirm:.40,hipFirm:.45,chestDamp:.22,hipDamp:.25,sag:1.65,contact:2.2},off:{...defaults,chest:0,hips:0,contact:0,sag:0}};
@@ -99,7 +109,7 @@ function draw(){
 }
 function release(key){const heldHand=held.get(key);if(!heldHand)return;heldHand.marker.removeFromParent();heldHand.marker.geometry.dispose();heldHand.marker.material.dispose();held.delete(key);}
 function releaseAll(){for(const k of [...held.keys()])release(k);states.clear();nextPick.clear();}
-function reset(){releaseAll();grip.reset();syncWholePose(0,true);secondary.reset();model.dispose();model=createRagdoll(J,fit);if(furniture){model.installTable(furniture.parts,anchor);furniture.root.position.copy(model.table.position);furniture.root.quaternion.copy(model.table.rotation);}model.setBounce(motion.bounce);lastFloor.set(Infinity,0,0);updateFloor();draw();paused=true;firstDrop=true;acc=0;$('run').textContent='Drop / start';status('Rest pose reset');}
+function reset(){releaseAll();grip.reset();syncWholePose(0,true);secondary.reset();model.dispose();model=createRagdoll(J,fit);if(furniture){try{model.installTable(furniture.parts,anchor);furniture.root.position.copy(model.table.position);furniture.root.quaternion.copy(model.table.rotation);$('dropTable').disabled=false;}catch(e){$('tableStatus').textContent='Table visible; collision error: '+e.message;}}model.setBounce(motion.bounce);lastFloor.set(Infinity,0,0);updateFloor();draw();paused=true;firstDrop=true;acc=0;$('run').textContent='Drop / start';status('Rest pose reset');}
 function start(key,r,quiet=false,nearPoint=null){
   if(grip.isHolding('left')||grip.isHolding('right'))return false;
   if(held.has(key))return true;
@@ -147,7 +157,7 @@ renderer.backend.device?.addEventListener('uncapturederror',e=>status('GPU valid
 window.addEventListener('error',e=>status('Error: '+e.message));window.addEventListener('unhandledrejection',e=>status('Error: '+e.reason?.message));
 const supported=navigator.xr&&typeof globalThis.XRGPUBinding!=='undefined'&&await navigator.xr.isSessionSupported('immersive-ar');
 $('enter').disabled=!supported;$('enter').textContent=supported?'ENTER PASSTHROUGH':'Desktop preview — native XR unavailable';$('run').disabled=false;$('reset').disabled=false;
-updateFloor();draw();await renderer.compileAsync(scene,camera);status('Ready: 60 kg ragdoll; rustic table loading independently. V1.6 handling retained.');
+updateFloor();draw();await tablePromise;await renderer.compileAsync(scene,camera);status('Ready: 60 kg ragdoll; table '+(furniture?'visible':'unavailable')+'. V1.6 handling retained.');
 let last=0,begin=0,frames=0,physicsMs=0;
 await renderer.setAnimationLoop((time,frame)=>{try{const realDt=last?Math.max(0,(time-last)/1000):0,dt=Math.min(.05,realDt);last=time;if(!begin)begin=time;frames++;
   if(renderer.xr.isPresenting){grip.pollGrips();xrUpdate(dt,frame);}else{orbit.update();if(held.has('mouse'))move('mouse',held.get('mouse').ray,dt);}

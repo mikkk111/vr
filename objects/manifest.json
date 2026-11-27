@@ -493,11 +493,11 @@
     },
     {
       "id": "human-ragdoll-v1-7",
-      "title": "Human Ragdoll V1.7 — Rustic Wooden Table",
-      "url": "./objects/human-ragdoll-v1-7/?v=1.7",
+      "title": "Human Ragdoll V1.7.1 — Rustic Wooden Table",
+      "url": "./objects/human-ragdoll-v1-7/?v=1.7.1",
       "modelPath": "./objects/human-softbody-v1-0/assets/character-softbody-v1.glb",
-      "description": "V1.6 handling and V1.5 tissue, plus a CC0 Poly Haven rustic table with independent room pose and dynamic compound collision in the same Jolt world. Source asset import, runtime and Quest verification pending.",
-      "version": "1.7",
+      "description": "Verified repository-hosted CC0 original table GLB, 2 m width, 1K runtime textures, 32 kg dynamic compound collider, source fallback and local procedural backup. V1.6 handling retained. Live browser and Quest verification pending.",
+      "version": "1.7.1",
       "previousVersion": "human-ragdoll-v1-6",
       "status": "experimental"
     }

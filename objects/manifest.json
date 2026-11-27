@@ -107,6 +107,17 @@
       "modelPath": "./objects/figure-photo-textured-20261121/assets/Figure_Photo_Textured.glb",
       "description": "Phototextured female figure with original 4096×4096 embedded skin image and Zelda v13 Quest 3 passthrough manipulation.",
       "status": "ready"
+    },
+    {
+      "id": "zelda-webgpu-v13",
+      "title": "Zelda WebGPU V13 — Human Rendering Experiment",
+      "url": "./objects/zelda-webgpu-v13/",
+      "modelPath": "https://threejs.org/examples/models/gltf/LeePerrySmith/LeePerrySmith.glb",
+      "description": "Experimental native WebGPU and WebGL 2 comparison with shared Zelda v13 controls, Infinite-Realities head scan (external colour, normal and specular maps), and an optional hosted Heidi full-body model. Quest testing pending.",
+      "author": "Lee Perry-Smith / Infinite-Realities",
+      "license": "CC BY 3.0",
+      "sourceUrl": "https://threejs.org/examples/webgl_materials_normalmap.html",
+      "status": "experimental"
     }
   ]
 }

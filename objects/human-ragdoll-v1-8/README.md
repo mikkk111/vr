@@ -4,3 +4,5 @@ Aim at the table and hold either side grip to translate or rotate it. Join the s
 Texture budget: two 512px maps (colour and normal), constant roughness, original 600 triangles. A local compact GLB is preferred, with previous official GLB as fallback, downsampled before GPU upload. A procedural backup remains available if the asset fails to load. Texture memory estimates are theoretical, not measured FPS or device memory. Asset source: https://polyhaven.com/a/painted_wooden_table (CC0). Project-facing text excludes personal names and surnames.
 
 Runtime testing on Quest and live deployment not yet verified.
+
+Compact asset build completed: 161,344 bytes versus 7,418,304 bytes original; 600 triangles and two 512px maps. SHA-256: 678735f218127b17ef4af83370d5c4968b2955c911729741539ea0f0af136de2. This follow-up commit requests a Pages rebuild after the asset import. Physical headset testing remains outstanding.

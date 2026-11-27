@@ -443,6 +443,17 @@
       "status": "experimental",
       "modelSha256": "dafef1c0d53d53099bb567c7d134f894bdc6b9e6d5a679c71557b9a64a4b85ee",
       "modelBytes": 6284328
+    },
+    {
+      "id": "human-ragdoll-v1-3",
+      "title": "Human Ragdoll V1.3 — Rigid Skin Contact",
+      "url": "./objects/human-ragdoll-v1-3/?v=1.3",
+      "modelPath": "./objects/human-softbody-v1-0/assets/character-softbody-v1.glb",
+      "description": "New native Jolt WASM rigid ragdoll, 15 model-fitted convex skin envelopes and 14 native hinge/swing-twist joints, original 22-bone GPU-skinned character. No soft-tissue solver; adjacent joint pairs excluded only. Collision hull debug view and independent limb grabbing. Rest-pose fit checked; full native regression and Quest verification pending.",
+      "version": "1.3",
+      "previousVersion": "human-softbody-v1-2",
+      "status": "experimental",
+      "modelSha256": "dafef1c0d53d53099bb567c7d134f894bdc6b9e6d5a679c71557b9a64a4b85ee"
     }
   ]
 }

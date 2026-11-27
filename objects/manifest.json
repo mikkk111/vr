@@ -419,6 +419,18 @@
       "status": "experimental",
       "modelSha256": "dafef1c0d53d53099bb567c7d134f894bdc6b9e6d5a679c71557b9a64a4b85ee",
       "modelBytes": 6284328
+    },
+    {
+      "id": "human-softbody-v1-1",
+      "title": "Human Soft Body V1.1 — Ragdoll Stability",
+      "url": "./objects/human-softbody-v1-1/?v=1.1",
+      "modelPath": "./objects/human-softbody-v1-0/assets/character-softbody-v1.glb",
+      "description": "Stability revision: filtered nearby rigid contacts, native hinge restraints and bounded ball-joint velocity stops, damped advected volumetric tissue without unstable feedback impulses. Original hosted GLB reused unchanged. Actual cage rotation/descent regression passed; full articulated drop and Quest testing pending.",
+      "version": "1.1",
+      "previousVersion": "human-softbody-v1-0",
+      "status": "experimental",
+      "modelSha256": "dafef1c0d53d53099bb567c7d134f894bdc6b9e6d5a679c71557b9a64a4b85ee",
+      "modelBytes": 6284328
     }
   ]
 }

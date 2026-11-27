@@ -454,6 +454,18 @@
       "previousVersion": "human-softbody-v1-2",
       "status": "experimental",
       "modelSha256": "dafef1c0d53d53099bb567c7d134f894bdc6b9e6d5a679c71557b9a64a4b85ee"
+    },
+    {
+      "id": "human-ragdoll-v1-4",
+      "title": "Human Ragdoll V1.4 — Local Secondary Motion",
+      "url": "./objects/human-ragdoll-v1-4/?v=1.4",
+      "modelPath": "./objects/human-softbody-v1-0/assets/character-softbody-v1.glb",
+      "description": "V1.3 native rigid engine with slight adjustable floor bounce and four bounded acceleration-driven local tissue springs. Independent presets and response sliders; conservative fitted hulls; original GPU skinning. Numerical mask and spring tests passed; Quest runtime pending.",
+      "version": "1.4",
+      "previousVersion": "human-ragdoll-v1-3",
+      "status": "experimental",
+      "modelSha256": "dafef1c0d53d53099bb567c7d134f894bdc6b9e6d5a679c71557b9a64a4b85ee",
+      "modelBytes": 6284328
     }
   ]
 }

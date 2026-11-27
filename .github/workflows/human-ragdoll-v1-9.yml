@@ -1,0 +1,54 @@
+name: V1.9 native physics regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'objects/human-ragdoll-v1-9/**'
+      - '.github/workflows/human-ragdoll-v1-9.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: human-ragdoll-v1-9-test
+  cancel-in-progress: true
+jobs:
+  regression:
+    if: "!contains(github.event.head_commit.message, '[physics-report]')"
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run actual Jolt and actual table geometry
+        id: native
+        shell: bash
+        run: |
+          set -o pipefail
+          D="$RUNNER_TEMP/vr-native"
+          mkdir -p "$D"
+          cp objects/human-ragdoll-v1-9/{ragdoll.js,table.js,test-native.mjs} "$D/"
+          cp objects/human-ragdoll-v1-5/fit.json "$D/"
+          cp objects/human-ragdoll-v1-8/assets/table-lite.glb "$D/"
+          cd "$D"
+          echo '{"type":"module","private":true}' > package.json
+          npm install --no-audit --no-fund --ignore-scripts three@0.187.0 jolt-physics@1.1.2
+          node test-native.mjs
+      - name: Store native regression report
+        if: always()
+        shell: bash
+        run: |
+          D="$RUNNER_TEMP/vr-native"
+          P=objects/human-ragdoll-v1-9/native-test-result.json
+          if [ -f "$D/native-test-result.json" ]; then
+            cp "$D/native-test-result.json" "$P"
+          else
+            printf '{"status":"failed","error":"Native runner did not produce a report"}\n' > "$P"
+          fi
+          git add "$P"
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m '[physics-report] V1.9 native regression'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi

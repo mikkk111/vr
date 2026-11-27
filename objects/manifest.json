@@ -334,6 +334,18 @@
       "version": "1.5",
       "previousVersion": "light-debris-v1-4",
       "status": "experimental"
+    },
+    {
+      "id": "cocoon-gpu-v1-0",
+      "title": "Cocoon GPU V1.0 — Neural Silk VR",
+      "url": "./objects/cocoon-gpu-v1-0/?v=1.0",
+      "modelPath": null,
+      "description": "Original high-detail neural silk hero rendering loaded from pinned upstream; native stereo WebGPU passthrough and dark VR, shared Zelda v13 grips, three density settings. Experimental; physical Quest testing pending.",
+      "author": "Yuri Artiukh (original Cocoon)",
+      "sourceUrl": "https://akella.github.io/codevember-2026/20/",
+      "sourceCommit": "902fcb1f492dac4138d72aad16dd85af71ceeda4",
+      "version": "1.0",
+      "status": "experimental"
     }
   ]
 }

@@ -1,0 +1,59 @@
+{
+  "version": "1.0",
+  "baselineCommit": "7012380f8a6e9763efaccf3c69bd2564b2b01048",
+  "appBlob": "36d8675c944f88657a18ee96d13791f83998b00d",
+  "htmlBlob": "055f9ed57db564750db1144e02e7840c7c0ebdaa",
+  "sharedPhysicsBlob": "9f206b64bbe1a483f429489e54aa85cdc2f489a7",
+  "threeVersion": "0.187.0",
+  "defaults": {
+    "mode": "ar",
+    "quality": "quest",
+    "palette": "warm"
+  },
+  "quality": {
+    "quest": {
+      "count": 8000,
+      "xr": 0.65,
+      "dpr": 0.8
+    },
+    "balanced": {
+      "count": 24000,
+      "xr": 0.75,
+      "dpr": 1
+    },
+    "high": {
+      "count": 60000,
+      "xr": 0.85,
+      "dpr": 1
+    },
+    "ultra": {
+      "count": 150000,
+      "xr": 1,
+      "dpr": 1.15
+    }
+  },
+  "palettes": {
+    "warm": [
+      "#ffaf64",
+      "#83baff"
+    ],
+    "red": [
+      "#ff5445",
+      "#ffe7cf"
+    ],
+    "white": [
+      "#fff4dc",
+      "#659fff"
+    ]
+  },
+  "environments": {
+    "ar": "immersive-ar",
+    "vr": "immersive-vr"
+  },
+  "policy": "Reference snapshot only; runtime remains unchanged. Future experiments use new version folders, never overwrite this baseline.",
+  "ownerVerification": {
+    "date": "2026-11-27",
+    "scope": "Owner reported V1.0 working successfully; specific device, environment and GPU presets were not stated in this feedback.",
+    "independent": false
+  }
+}

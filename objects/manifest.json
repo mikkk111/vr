@@ -247,10 +247,18 @@
       "title": "Light & Debris GPU V1.0 — VR & Passthrough",
       "url": "./objects/light-debris-v1-0/?v=1.0",
       "modelPath": null,
-      "description": "Independent native WebGPU light-driven metallic debris simulation with 8,000–150,000 fragments, dual controller beams, dark VR and mixed reality; shared Zelda v13 grips. Quest testing pending.",
+      "description": "Owner-confirmed working independent native WebGPU light-driven metallic debris simulation with 8,000–150,000 fragments, dual controller beams, dark VR and mixed reality; shared Zelda v13 grips. Individual preset test coverage not specified.",
       "sourceUrl": "https://nkondo-ft.github.io/light-and-debris/",
       "version": "1.0",
-      "status": "experimental"
+      "status": "user-tested",
+      "engineBaseline": true,
+      "ownerVerification": {
+        "date": "2026-11-27",
+        "scope": "Owner reported V1.0 working successfully; specific device, environment and GPU presets were not stated in this feedback.",
+        "independent": false
+      },
+      "baselineCommit": "7012380f8a6e9763efaccf3c69bd2564b2b01048",
+      "presetPath": "./objects/light-debris-v1-0/presets.json"
     }
   ]
 }

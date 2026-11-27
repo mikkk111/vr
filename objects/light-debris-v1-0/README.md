@@ -12,3 +12,7 @@ An independent VR interpretation of [Light & Debris by FunTech / nkondo-ft](http
 - Hardware validation pending. Begin at 8,000, then test 24,000 and above only if comfortable. Use headset system exit controls if needed.
 
 Query parameters: mode=ar|vr, quality=quest|balanced|high|ultra, palette=warm|red|white.
+
+## Preserved baseline — 27 November 2026
+
+The owner reported that V1.0 works successfully. Individual quality/environment tests and device were not specified in the feedback; no independent hardware testing is claimed. The exact working source is pinned at commit `7012380f8a6e9763efaccf3c69bd2564b2b01048`. `presets.json` records all original GPU, environment and palette settings and source blob identifiers. This snapshot is documentation only: the executable code and shared controls remain unchanged. Future experiments must use a separate version folder.

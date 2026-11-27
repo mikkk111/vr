@@ -1,0 +1,18 @@
+{
+  "status": "failed",
+  "tests": [
+    {
+      "name": "actual mesh fit",
+      "dimensions": [
+        2,
+        0.7970033400452049,
+        0.9452795231953035
+      ],
+      "parts": 5,
+      "top": 0.7970033400452049,
+      "triangles": 600
+    }
+  ],
+  "source": "native Jolt WASM 1.1.2 and original compact table geometry",
+  "error": "RuntimeError: memory access out of bounds\n    at wasm://wasm/007bc4e2:wasm-function[14]:0xa591\n    at wasm://wasm/007bc4e2:wasm-function[27]:0xad62\n    at Jolt.n.__destroy__ (file:///home/runner/work/_temp/vr-native/node_modules/jolt-physics/dist/jolt-physics.wasm-compat.js:934:147)\n    at Jolt.Module.destroy (file:///home/runner/work/_temp/vr-native/node_modules/jolt-physics/dist/jolt-physics.wasm-compat.js:753:154)\n    at Object.captureTable (file:///home/runner/work/_temp/vr-native/ragdoll.js:205:90)\n    at step (file:///home/runner/work/_temp/vr-native/test-native.mjs:30:64)\n    at file:///home/runner/work/_temp/vr-native/test-native.mjs:33:149"
+}

@@ -346,6 +346,17 @@
       "sourceCommit": "902fcb1f492dac4138d72aad16dd85af71ceeda4",
       "version": "1.0",
       "status": "experimental"
+    },
+    {
+      "id": "light-debris-v1-6",
+      "title": "Light & Debris GPU V1.6 — Silent Space",
+      "url": "./objects/light-debris-v1-6/?v=1.6",
+      "modelPath": null,
+      "description": "V1.5 photographic sky, nebula lights, glass and controls unchanged. Continuous cloud ambience removed; original dual spatial trigger interaction audio retained. Quest testing pending.",
+      "sourceUrl": "https://nkondo-ft.github.io/light-and-debris/",
+      "version": "1.6",
+      "previousVersion": "light-debris-v1-5",
+      "status": "experimental"
     }
   ]
 }

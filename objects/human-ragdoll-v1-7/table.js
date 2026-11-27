@@ -34,7 +34,7 @@ function fallbackTable(){
   parts.splice(0,5,{center:[0,.735,0],half:[1,.025,.4]});
   return {root,parts,size:V(2,.76,.8),source:'procedural fallback',triangles:root.children.length*12,fallback:true};
 }
-export async function loadTable(){
+async function loadOriginalOrBackup(){
   let gl,errors=[];
   for(const url of ['./assets/table.glb?v=171',RAW]){try{gl=await loadGLB(url);break;}catch(e){errors.push(e.message);}}
   if(!gl){const result=fallbackTable();result.warning=errors.join('; ');return result;}
@@ -95,3 +95,5 @@ export async function loadTable(){
   }
   return {root,parts,size,source,triangles:triangles.length,fallback:false};
 }
+
+export async function loadTable(){try{return await loadOriginalOrBackup();}catch(e){const result=fallbackTable();result.warning='Original geometry or texture processing failed: '+e.message;return result;}}

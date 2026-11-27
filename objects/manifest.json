@@ -478,6 +478,18 @@
       "status": "experimental",
       "modelSha256": "dafef1c0d53d53099bb567c7d134f894bdc6b9e6d5a679c71557b9a64a4b85ee",
       "modelBytes": 6284328
+    },
+    {
+      "id": "human-ragdoll-v1-6",
+      "title": "Human Ragdoll V1.6 — Pickup and Limb Dragging",
+      "url": "./objects/human-ragdoll-v1-6/?v=1.6",
+      "modelPath": "./objects/human-softbody-v1-0/assets/character-softbody-v1.glb",
+      "description": "Pose-aware pickup after falling, recentered two-hand resizing, stronger near and distant limb control and distributed body drag. Original 60 kg mass, V1.5 tissue response and joint limits preserved. Numerical helper tests passed; Quest runtime pending.",
+      "version": "1.6",
+      "previousVersion": "human-ragdoll-v1-5",
+      "status": "experimental",
+      "modelSha256": "dafef1c0d53d53099bb567c7d134f894bdc6b9e6d5a679c71557b9a64a4b85ee",
+      "modelBytes": 6284328
     }
   ]
 }

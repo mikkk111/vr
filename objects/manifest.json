@@ -259,6 +259,17 @@
       },
       "baselineCommit": "7012380f8a6e9763efaccf3c69bd2564b2b01048",
       "presetPath": "./objects/light-debris-v1-0/presets.json"
+    },
+    {
+      "id": "light-debris-v1-1",
+      "title": "Light & Debris GPU V1.1 — Spatial Audio",
+      "url": "./objects/light-debris-v1-1/?v=1.1",
+      "modelPath": null,
+      "description": "Preserves V1.0 GPU simulation and presets; adds two spatial trigger lasers, quiet procedural ambient sound and sampled GPU fragment-contact crystal chimes. Independent audio volume controls; Quest testing pending.",
+      "sourceUrl": "https://nkondo-ft.github.io/light-and-debris/",
+      "version": "1.1",
+      "previousVersion": "light-debris-v1-0",
+      "status": "experimental"
     }
   ]
 }

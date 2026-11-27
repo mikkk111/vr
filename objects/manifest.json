@@ -131,6 +131,19 @@
       "status": "experimental",
       "version": "14.1",
       "previousVersion": "zelda-webgpu-v13"
+    },
+    {
+      "id": "zelda-gpu-v14-2",
+      "title": "Zelda GPU V14.2 — Human Rendering Experiment",
+      "url": "./objects/zelda-gpu-v14-2/?v=14.2",
+      "modelPath": "https://threejs.org/examples/models/gltf/LeePerrySmith/LeePerrySmith.glb",
+      "description": "Native WebGPU stability experiment with prominent version number and Main Menu navigation; V14.1 rendering and shared controls unchanged. Quest testing pending.",
+      "author": "Lee Perry-Smith / Infinite-Realities",
+      "license": "CC BY 3.0",
+      "sourceUrl": "https://threejs.org/examples/webgl_materials_normalmap.html",
+      "status": "experimental",
+      "version": "14.2",
+      "previousVersion": "zelda-gpu-v14-1"
     }
   ]
 }

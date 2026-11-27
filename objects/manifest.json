@@ -285,6 +285,22 @@
       "sourceUrl": "https://nkondo-ft.github.io/light-and-debris/",
       "version": "1.2",
       "previousVersion": "light-debris-v1-1",
+      "status": "user-tested",
+      "ownerVerification": {
+        "date": "2026-11-27",
+        "scope": "Owner reported V1.2 was beautiful; exact preset and device coverage not stated.",
+        "independent": false
+      }
+    },
+    {
+      "id": "light-debris-v1-3",
+      "title": "Light & Debris GPU V1.3 — Spatial Rain",
+      "url": "./objects/light-debris-v1-3/?v=1.3",
+      "modelPath": null,
+      "description": "V1.2 refractive glass unchanged; eight head-tracked spatial rainfall regions follow cloud position, scale and sampled GPU fragment motion, with higher-pitched dual trigger rain. Quest testing pending.",
+      "sourceUrl": "https://nkondo-ft.github.io/light-and-debris/",
+      "version": "1.3",
+      "previousVersion": "light-debris-v1-2",
       "status": "experimental"
     }
   ]

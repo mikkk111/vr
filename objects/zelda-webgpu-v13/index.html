@@ -37,12 +37,12 @@
   <section id="panel">
     <div class="eyebrow">Meta Quest 3 · Experimental A/B renderer</div>
     <h1>Zelda WebGPU <span style="color:#86e8d4">V13</span></h1>
-    <div class="versionline"><strong>Shared Zelda v13 controls</strong> · Experiment 1.0 · Three.js 0.186.1</div>
+    <div class="versionline"><strong>Shared Zelda v13 controls</strong> · Experiment 1.1 · Native GPU safe mode · Three.js 0.186.1</div>
     <div class="sub">Compare identical human geometry and materials using native WebGPU and WebGL 2. No virtual floor, grid or gravity.</div>
     <label>Renderer <select id="rendererSelect"><option value="webgpu">Native WebGPU</option><option value="webgl">WebGL 2</option></select></label>
     <label>Materials <select id="materialSelect"><option value="lit">Lit / original maps</option><option value="unlit">Unlit / colour only</option></select></label>
-    <label>Model <select id="modelSelect"><option value="head">Infinite head scan</option><option value="heidi">Heidi (full body)</option></select></label>
-    <p id="backend">Initialising renderer…</p><p id="fps">Measuring callback fps…</p><p id="lastXR">Last XR sample: none</p>
+    <label>Model <select id="modelSelect"><option value="head">Infinite head scan</option><option value="heidi">Heidi (full body)</option><option value="cube">Diagnostic cube</option></select></label>
+    <p id="backend">Initialising renderer…</p><p id="diag">GPU diagnostics starting…</p><p><a href="?renderer=webgpu&amp;material=unlit&amp;model=cube&amp;v=1.1">Native WebGPU cube test</a> · <a href="?renderer=webgpu&amp;material=lit&amp;model=head&amp;quality=full&amp;v=1.1">Full-quality WebGPU</a> · <a href="?renderer=webgl&amp;material=lit&amp;model=head&amp;v=1.1">Working WebGL comparison</a></p><p id="fps">Measuring callback fps…</p><p id="lastXR">Last XR sample: none</p>
     <p id="creditHead">Head scan: Lee Perry-Smith / Infinite-Realities, <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>; geometry and colour, specular, normal maps from <a href="https://threejs.org/examples/webgl_materials_normalmap.html" target="_blank" rel="noopener">Three.js examples</a>. External asset; scaled to 32 cm for inspection.</p>
     <p id="creditHeidi" hidden>Heidi by jamray747, <a href="https://sketchfab.com/3d-models/heidi-719b33ba7bb44203ab4ad1bc9872bb74" target="_blank" rel="noopener">original model</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Existing repository asset.</p>
     <button id="enterAR" class="primary" type="button" disabled>CHECKING QUEST SUPPORT…</button>
@@ -74,40 +74,62 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGrabPhysics } from '../../shared/zelda-v13/physics-grab.js?v=template-1';
 const query = new URLSearchParams(location.search);
 const useWebGL = query.get('renderer') === 'webgl';
-const unlit = query.get('material') === 'unlit';
+const unlit = query.get('material') === 'unlit' || query.get('model') === 'cube';
 const fullBody = query.get('model') === 'heidi';
+const diagnosticCube = query.get('model') === 'cube';
+const safeGPU = !useWebGL && query.get('quality') !== 'full';
 const source = 'https://threejs.org/examples/models/gltf/LeePerrySmith/';
 const OBJECT_CONFIG = Object.freeze({
-  modelUrl: fullBody ? '../heidi/assets/heidi.glb' : source + 'LeePerrySmith.glb',
+  modelUrl: diagnosticCube ? null : fullBody ? '../heidi/assets/heidi.glb' : source + 'LeePerrySmith.glb',
   fitToView: true, targetLongestSideMetres: fullBody ? 1.67 : 0.32, initialYawRadians: 0
 });
 const mode = useWebGL ? 'WebGL 2' : 'Native WebGPU';
-for (const [id, value] of [['rendererSelect', useWebGL ? 'webgl' : 'webgpu'], ['materialSelect', unlit ? 'unlit' : 'lit'], ['modelSelect', fullBody ? 'heidi' : 'head']]) {
+for (const [id, value] of [['rendererSelect', useWebGL ? 'webgl' : 'webgpu'], ['materialSelect', unlit ? 'unlit' : 'lit'], ['modelSelect', diagnosticCube ? 'cube' : fullBody ? 'heidi' : 'head']]) {
   const control = document.getElementById(id);
   control.value = value;
   control.addEventListener('change', () => {
     query.set('renderer', document.getElementById('rendererSelect').value);
     query.set('material', document.getElementById('materialSelect').value);
     query.set('model', document.getElementById('modelSelect').value);
+    query.set('v','1.1');
     location.search = query.toString();
   });
 }
-document.getElementById('creditHead').hidden=fullBody;
+document.getElementById('creditHead').hidden=fullBody||diagnosticCube;
 document.getElementById('creditHeidi').hidden=!fullBody;
 
 const $ = (id) => document.getElementById(id);
 const setStatus = (message) => { $('status').textContent = message; };
+const logKey='zelda-v13-webgpu-last-stage';
+let priorStage='none';
+try{priorStage=localStorage.getItem(logKey)||'none';}catch{}
+let phase='initialising';
+function mark(message){
+  phase=message;
+  $('diag').textContent='Current: '+message+' | Previous visit: '+priorStage;
+  try{localStorage.setItem(logKey,message);}catch{}
+}
+window.addEventListener('error',e=>mark('Error: '+(e.message||'unknown error')));
+window.addEventListener('unhandledrejection',e=>mark('Rejected: '+(e.reason?.message||String(e.reason))));
+mark('page loaded');
 const stage = $('scene');
 const scene = new THREE.Scene(); // Transparency is required for passthrough.
 const rendererOptions={antialias:true,alpha:true,powerPreference:'high-performance'};
-const renderer = useWebGL ? new THREE.WebGLRenderer(rendererOptions) : new WebGPURenderer(rendererOptions);
+// r186 native GPU XR does not support MSAA; avoid allocating it even in the preview.
+const gpuOptions={antialias:false,alpha:true,depth:true,stencil:false,multiview:false,outputBufferType:safeGPU?THREE.UnsignedByteType:THREE.HalfFloatType,powerPreference:'high-performance'};
+const renderer = useWebGL ? new THREE.WebGLRenderer(rendererOptions) : new WebGPURenderer(gpuOptions);
 try {
   if (!useWebGL) {
     if (!navigator.gpu) throw Error('This browser does not expose WebGPU.');
+    mark('initialising native GPU device');
     await renderer.init();
     if (!renderer.backend?.isWebGPUBackend) throw Error('Native WebGPU unavailable; fallback rejected for a valid comparison.');
+    const device=renderer.backend.device;
+    device?.addEventListener('uncapturederror',e=>{mark('GPU validation error: '+e.error.message);console.error(e.error);});
+    device?.lost.then(info=>{mark('GPU device lost: '+info.reason+' '+info.message);setStatus('GPU device lost. Reopen with WebGL or try the diagnostic cube.');$('enterAR').disabled=true;renderer.setAnimationLoop(null);});
   }
-  document.getElementById('backend').textContent = mode + ' · desktop';
+  document.getElementById('backend').textContent = mode + ' · desktop' + (safeGPU?' · safe mode':'');
+  mark('renderer initialised');
 } catch(error) {
   setStatus('Renderer could not start: '+error.message+' Select WebGL 2 to use the comparison mode.');
   document.getElementById('enterAR').textContent='RENDERER UNAVAILABLE';
@@ -118,10 +140,11 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.toneMappingExposure = 1;
 renderer.setClearColor(0x000000,0);
-renderer.setPixelRatio(Math.min(devicePixelRatio || 1,1.5));
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1,safeGPU?0.8:1.5));
 renderer.setSize(innerWidth,innerHeight);
 renderer.xr.enabled = true;
 renderer.xr.setReferenceSpaceType('local-floor');
+if(safeGPU) renderer.xr.setFramebufferScaleFactor(0.65);
 renderer.shadowMap.enabled = false;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 stage.appendChild(renderer.domElement);
@@ -149,7 +172,7 @@ if (!unlit) {
 const modelAnchor=new THREE.Group();
 modelAnchor.position.set(0,1,-2);
 scene.add(modelAnchor);
-let avatar=null,physics=null,modelSize=null;
+let avatar=null,physics=null,modelSize=null,modelReady=false,firstDesktop=false,firstXR=false;
 const physicsReady=createGrabPhysics({renderer,rig,modelAnchor,onStatus:setStatus})
   .then(instance=>{
     physics=instance;
@@ -162,6 +185,29 @@ const physicsReady=createGrabPhysics({renderer,rig,modelAnchor,onStatus:setStatu
 const glbLoader=new GLTFLoader();
 const objLoader=new OBJLoader();
 const fbxLoader=new FBXLoader();
+// Only the safe WebGPU preview uses smaller texture copies. Original asset files stay untouched.
+const resizedTextures=new WeakSet();
+function reduceTextures(root){
+  if(!safeGPU)return;
+  const slots=['map','normalMap','specularMap','roughnessMap','metalnessMap','alphaMap','emissiveMap','aoMap','bumpMap'];
+  root.traverse(n=>{
+    if(!n.isMesh)return;
+    for(const mat of (Array.isArray(n.material)?n.material:[n.material])){
+      if(!mat)continue;
+      for(const slot of slots){
+        const t=mat[slot],im=t?.image;
+        if(!t||!im||resizedTextures.has(t)||t.isCompressedTexture||!im.width||!im.height)continue;
+        resizedTextures.add(t);
+        const scale=Math.min(1,1024/Math.max(im.width,im.height));
+        if(scale===1)continue;
+        const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(im.width*scale));canvas.height=Math.max(1,Math.round(im.height*scale));
+        const ctx=canvas.getContext('2d');
+        if(!ctx)continue;
+        try{ctx.drawImage(im,0,0,canvas.width,canvas.height);t.image=canvas;t.needsUpdate=true;}catch(e){console.warn('Texture reduction skipped',e);}
+      }
+    }
+  });
+}
 function installObject(root,label='Object') {
   if(!root || !root.isObject3D)throw new Error('The imported file has no Three.js scene.');
   // Compute from a detached root; do not inherit any previous anchor rotation.
@@ -188,12 +234,15 @@ function installObject(root,label='Object') {
     const lights=[]; root.traverse(n=>{if(n.isLight)lights.push(n);});
     lights.forEach(n=>n.removeFromParent());
   }
+  reduceTextures(root);
   modelAnchor.add(root);
   modelAnchor.scale.setScalar(1);
   modelAnchor.rotation.set(0,Number(OBJECT_CONFIG.initialYawRadians)||0,0);
   modelAnchor.position.set(0,(!fullBody && label==='Lee Perry-Smith head scan')?1.5:Math.max(0.4,Math.min(1.6,dimensions.y/2)),-2);
   modelSize=dimensions;
   if(physics)physics.attachModel(modelSize);
+  modelReady=true;
+  mark('model installed: '+label);
   setStatus(label+' loaded. Aim at the object, squeeze a side grip and move or twist it. Other controls match VR v13.');
 }
 function loadObject(url,filename) {
@@ -216,7 +265,9 @@ function loadObject(url,filename) {
   else failed(new Error('Unsupported extension '+extension+'. Convert to GLB.'));
 }
 const initialModel=OBJECT_CONFIG.modelUrl;
-if(typeof initialModel==='string'&&initialModel.trim()){
+if(diagnosticCube){
+  installObject(new THREE.Mesh(new THREE.BoxGeometry(.3,.3,.3),new THREE.MeshBasicMaterial({color:0x39d9b0})),'Diagnostic cube');
+}else if(typeof initialModel==='string'&&initialModel.trim()){
   if(fullBody) loadObject(initialModel,'Heidi.glb');
   else {
     setStatus('Loading head scan and original colour, specular and normal maps…');
@@ -224,13 +275,13 @@ if(typeof initialModel==='string'&&initialModel.trim()){
     Promise.all([
       glbLoader.loadAsync(initialModel),
       t.loadAsync(source+'Map-COL.jpg'),
-      t.loadAsync(source+'Map-SPEC.jpg'),
-      t.loadAsync(source+'Infinite-Level_02_Tangent_SmoothUV.jpg')
+      unlit?Promise.resolve(null):t.loadAsync(source+'Map-SPEC.jpg'),
+      unlit?Promise.resolve(null):t.loadAsync(source+'Infinite-Level_02_Tangent_SmoothUV.jpg')
     ]).then(([gltf,map,specularMap,normalMap])=>{
       map.colorSpace=THREE.SRGBColorSpace;
-      specularMap.colorSpace=THREE.SRGBColorSpace;
+      if(specularMap)specularMap.colorSpace=THREE.SRGBColorSpace;
       // Original Three.js example uses these three maps with MeshPhongMaterial.
-      const material=new THREE.MeshPhongMaterial({color:0xefefef,specular:0x222222,shininess:35,map,specularMap,normalMap,normalScale:new THREE.Vector2(1,1)});
+      const material=unlit?new THREE.MeshBasicMaterial({color:0xefefef,map}):new THREE.MeshPhongMaterial({color:0xefefef,specular:0x222222,shininess:35,map,specularMap,normalMap,normalScale:new THREE.Vector2(1,1)});
       gltf.scene.traverse(n=>{if(n.isMesh)n.material=material;});
       installObject(gltf.scene,'Lee Perry-Smith head scan');
     }).catch(e=>{console.error(e);setStatus('Head asset load failed. Select Heidi or import a local GLB. '+e.message);});
@@ -370,8 +421,13 @@ enter.addEventListener('click',async()=>{
   let session;
   try{
     if(renderer.xr.isPresenting){await renderer.xr.getSession().end();return;}
+    if(!modelReady){setStatus('Wait until the model is loaded before starting passthrough.');return;}
+    mark('requesting immersive AR session');
     session=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:useWebGL?['local-floor']:['local-floor','webgpu']});
+    mark('session granted; creating XR projection layer');
+    firstXR=false;
     await renderer.xr.setSession(session);
+    mark('XR session attached');
     if(!useWebGL && !renderer.xr.getWebGPUBinding?.())throw Error('No native XR GPU binding; invalid comparison.');
     document.getElementById('backend').textContent=mode+' · '+(useWebGL?'WebXR':'XRGPUBinding');
     resetSample();
@@ -380,7 +436,7 @@ enter.addEventListener('click',async()=>{
     enter.textContent='PASSTHROUGH ACTIVE';
     physics?.releaseAll();
     setStatus('VR Objects Zelda WebGPU V13: point and squeeze, then move either controller or its aim to move distant object in all directions.');
-  }catch(error){if(session){try{await session.end();}catch{}}console.error(error);enter.textContent='RETRY PASSTHROUGH';setStatus(`Could not start AR: ${error.name}: ${error.message}`);}
+  }catch(error){if(session){try{await session.end();}catch{}}console.error(error);mark('AR start failed: '+error.name+': '+error.message);enter.textContent='RETRY PASSTHROUGH';setStatus(`Could not start AR: ${error.name}: ${error.message}`);}
   finally{enter.disabled=false;}
 });
 renderer.xr.addEventListener('sessionend',()=>{
@@ -393,7 +449,7 @@ renderer.xr.addEventListener('sessionend',()=>{
   enter.textContent='ENTER PASSTHROUGH';
   setStatus('Passthrough session ended. Desktop preview active.');
 });
-window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+window.addEventListener('resize',()=>{if(renderer.xr.isPresenting)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
 let previous=0, count=0, windowStart=0, xrSamples=0,xrStart=0,xrLast=0;
 function resetSample(){previous=0;count=0;windowStart=0;xrSamples=0;xrStart=0;xrLast=0;}
 await renderer.setAnimationLoop((time,frame)=>{
@@ -414,7 +470,17 @@ await renderer.setAnimationLoop((time,frame)=>{
     updateXR(dt,frame);
   } else {updateDesktop(dt);controls.update();}
   physics?.update(dt);
-  renderer.render(scene,camera);
+  try{
+    renderer.render(scene,camera);
+    if(renderer.xr.isPresenting&&frame&&!firstXR){firstXR=true;mark('first XR render submitted');}
+    else if(!renderer.xr.isPresenting&&modelReady&&!firstDesktop){firstDesktop=true;mark('first model preview render submitted');}
+  }catch(error){
+    mark('render failed: '+error.name+': '+error.message);
+    setStatus('Render failed: '+error.message);
+    console.error(error);
+    renderer.setAnimationLoop(null);
+    if(renderer.xr.isPresenting)renderer.xr.getSession()?.end().catch(console.error);
+  }
 });
 </script>
 </body>

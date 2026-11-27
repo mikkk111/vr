@@ -414,10 +414,10 @@
       "title": "Human Soft Body V1.0 — Anatomical Ragdoll",
       "url": "./objects/human-softbody-v1-0/?v=1.0",
       "modelPath": "./objects/human-softbody-v1-0/assets/character-softbody-v1.glb",
-      "description": "Independent 22-bone ragdoll with anatomical joint limits, 1,973-node tetrahedral XPBD tissue, sampled skin contacts and pressure tools. Native WebGPU rendering, CPU physics, Zelda v13 whole-object controls. Prepared GLB upload pending; local file picker available. Full-character and Quest testing pending.",
+      "description": "Independent 22-bone ragdoll with anatomical joint limits, 1,973-node tetrahedral XPBD tissue, topology-aware sampled skin contacts and pressure tools. Native WebGPU rendering, CPU physics, Zelda v13 whole-object controls. Prepared GLB upload pending; local file picker available. Synthetic tests passed; full-character and Quest testing pending.",
       "version": "1.0",
       "status": "pending",
-      "modelSha256": "ab24354e86e81c76b560c0d898ee05b4437baefffe6ebfed8fea1012e5f3811d"
+      "modelSha256": "dafef1c0d53d53099bb567c7d134f894bdc6b9e6d5a679c71557b9a64a4b85ee"
     }
   ]
 }

@@ -1,0 +1,48 @@
+name: Human Soft Body V1.1 drop regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'objects/human-softbody-v1-1/app.js'
+      - 'objects/human-softbody-v1-1/tissue.js'
+      - 'objects/human-softbody-v1-1/drop-test.mjs'
+      - '.github/workflows/human-softbody-v1-1-drop.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: human-softbody-v1-1-drop
+  cancel-in-progress: true
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: objects/human-softbody-v1-1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install exact runtime dependencies
+        run: npm install --no-save --package-lock=false three@0.187.0 @dimforge/rapier3d-compat@0.21.0
+      - name: Full-model numerical drop test
+        id: drop
+        continue-on-error: true
+        run: node drop-test.mjs
+      - name: Record result without overwriting concurrent changes
+        if: always()
+        run: |
+          if [ -f drop-test-results.json ]; then
+            git add drop-test-results.json
+            if ! git diff --cached --quiet; then
+              git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Record Human Soft Body V1.1 numerical drop regression'
+              git push origin HEAD:main
+            fi
+          fi
+      - name: Fail if regression fails
+        if: steps.drop.outcome != 'success'
+        run: exit 1

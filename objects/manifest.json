@@ -431,6 +431,18 @@
       "status": "experimental",
       "modelSha256": "dafef1c0d53d53099bb567c7d134f894bdc6b9e6d5a679c71557b9a64a4b85ee",
       "modelBytes": 6284328
+    },
+    {
+      "id": "human-softbody-v1-2",
+      "title": "Human Soft Body V1.2 — Quest Performance",
+      "url": "./objects/human-softbody-v1-2/?v=1.2",
+      "modelPath": "./objects/human-softbody-v1-0/assets/character-softbody-v1.glb",
+      "description": "GPU skeletal skinning and cage deformation, dedicated adaptive-rate tissue worker with 737 contact samples, 60 Hz rigid target, direct trigger picking and stronger mass-scaled limb grabs. Rigid-only diagnostic available. Actual-cage numerical tests passed; WebGPU shader, full drop and Quest testing pending.",
+      "version": "1.2",
+      "previousVersion": "human-softbody-v1-1",
+      "status": "experimental",
+      "modelSha256": "dafef1c0d53d53099bb567c7d134f894bdc6b9e6d5a679c71557b9a64a4b85ee",
+      "modelBytes": 6284328
     }
   ]
 }

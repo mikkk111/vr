@@ -301,6 +301,22 @@
       "sourceUrl": "https://nkondo-ft.github.io/light-and-debris/",
       "version": "1.3",
       "previousVersion": "light-debris-v1-2",
+      "status": "user-tested",
+      "ownerVerification": {
+        "date": "2026-11-27",
+        "scope": "Owner reported V1.3 rain version was pretty cool and loved it; exact preset/device coverage not specified.",
+        "independent": false
+      }
+    },
+    {
+      "id": "light-debris-v1-4",
+      "title": "Light & Debris GPU V1.4 — Cosmic Light & Rain",
+      "url": "./objects/light-debris-v1-4/?v=1.4",
+      "modelPath": null,
+      "description": "Infinite direction-only starfield, faint galaxies, finite red/blue spherical lights with true per-fragment optical ray directions and exit-point reflection/refraction, spatial rain unchanged. Quest testing pending.",
+      "sourceUrl": "https://nkondo-ft.github.io/light-and-debris/",
+      "version": "1.4",
+      "previousVersion": "light-debris-v1-3",
       "status": "experimental"
     }
   ]

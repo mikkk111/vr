@@ -357,6 +357,18 @@
       "version": "1.6",
       "previousVersion": "light-debris-v1-5",
       "status": "experimental"
+    },
+    {
+      "id": "cocoon-gpu-v1-1",
+      "title": "Cocoon GPU V1.1 — Quest Stability",
+      "url": "./objects/cocoon-gpu-v1-1/?v=1.1&quality=safe",
+      "modelPath": null,
+      "description": "Original neural silk renderer with reduced startup relief grid, sequential GPU relief passes, single-sample HDR, bounded per-eye resolution and one outstanding frame pair. Safe default. Quest testing pending.",
+      "sourceUrl": "https://akella.github.io/codevember-2026/20/",
+      "sourceCommit": "902fcb1f492dac4138d72aad16dd85af71ceeda4",
+      "version": "1.1",
+      "previousVersion": "cocoon-gpu-v1-0",
+      "status": "experimental"
     }
   ]
 }

@@ -1,0 +1,3 @@
+# Cocoon V1.1 — Quest stability
+
+Owner reported VK_ERROR_DEVICE_LOST on V1.0. Exact driver cause unknown. Original neural shader weights and fibre geometry are loaded unchanged; Safe reduces rendered fibre density to 12% of adaptive source density, relief field from 3072×1536 to 512×256 and neural shell grid from 1024 to 128. Original two-pass Gaussian relief is rescaled and each compute stage is submitted and awaited separately. No MSAA, artificial lens blur or unrestricted queued frames. Per-eye offscreen resolution bounded to 640 px longest edge; uses XR preferred format and actual view descriptor. Higher presets increase detail. Original V1.0 retained. JS syntax and upstream patch matching checked; headset rendering remains untested.

@@ -12,7 +12,7 @@ export function createTissue(a,restSkin){
   }
   const edgeLambda=new Float64Array(el.length), samples=a.samples, s=new Float64Array(samples.length*3), restS=new Float64Array(samples.length*3), correction=new Float64Array(p.length), hits=new Uint16Array(n);
   for(let i=0;i<samples.length;i++)restS.set(restSkin.subarray(samples[i]*3,samples[i]*3+3),i*3);
-  const denom=new Float64Array(samples.length);
+  const previousS=new Float64Array(samples.length*3), denom=new Float64Array(samples.length);
   for(let i=0;i<samples.length;i++){let v=samples[i]*8;for(let j=0;j<8;j++)denom[i]+=a.blend[v+j]**2;}
   const stats={nodes:n,tets:dets.length,edges:el.length,samples:samples.length,contacts:0,penetration:0,volumeRatio:1,inverted:0};
   const key=(x,y,z)=>((x+2048)*4096+(y+2048))*4096+(z+2048);
@@ -33,11 +33,17 @@ export function createTissue(a,restSkin){
         for(const j of bucket){const q=j*3;let rx=restS[k]-restS[q],ry=restS[k+1]-restS[q+1],rz=restS[k+2]-restS[q+2];if(rx*rx+ry*ry+rz*rz<.075**2)continue;
           let dx=x-s[q],dy=y-s[q+1],dz=z-s[q+2],d=Math.hypot(dx,dy,dz);if(d>=margin)continue;
           if(d<1e-7){d=Math.hypot(rx,ry,rz);dx=rx/d;dy=ry/d;dz=rz/d;d=0;}else{dx/=d;dy/=d;dz/=d;}
-          const dep=margin-d,step=Math.min(.012,dep*.47);accumulate(i,dx*step,dy*step,dz*step);accumulate(j,-dx*step,-dy*step,-dz*step);pairs++;deep=Math.max(deep,dep);
+          const dep=margin-d,step=Math.min(.012,dep*.47);
+          let tx=(x-previousS[k])-(s[q]-previousS[q]),ty=(y-previousS[k+1])-(s[q+1]-previousS[q+1]),tz=(z-previousS[k+2])-(s[q+2]-previousS[q+2]),dot=tx*dx+ty*dy+tz*dz;
+          tx-=dot*dx;ty-=dot*dy;tz-=dot*dz;let fr=Math.min(.5,step*.65/Math.max(1e-8,Math.hypot(tx,ty,tz)));
+          const cx=dx*step-tx*fr,cy=dy*step-ty*fr,cz=dz*step-tz*fr;
+          accumulate(i,cx,cy,cz);accumulate(j,-cx,-cy,-cz);
+          if(react){react(samples[i],x,y,z,cx,cy,cz);react(samples[j],s[q],s[q+1],s[q+2],-cx,-cy,-cz);}
+          pairs++;deep=Math.max(deep,dep);
         }
       }
       const cellKey=key(ix,iy,iz);let bucket=map.get(cellKey);if(!bucket)map.set(cellKey,bucket=[]);bucket.push(i);
-      if(floor){const d=x*floor.x+y*floor.y+z*floor.z+floor.c;if(d<.004){let dep=Math.min(.025,.004-d);accumulate(i,floor.x*dep,floor.y*dep,floor.z*dep);deep=Math.max(deep,.004-d);if(react)react(samples[i],x,y,z,floor.x*dep,floor.y*dep,floor.z*dep);}}
+      if(floor){const d=x*floor.x+y*floor.y+z*floor.z+floor.c;if(d<.004){let dep=Math.min(.025,.004-d);let tx=x-previousS[k],ty=y-previousS[k+1],tz=z-previousS[k+2],dot=tx*floor.x+ty*floor.y+tz*floor.z;tx-=dot*floor.x;ty-=dot*floor.y;tz-=dot*floor.z;let fr=Math.min(.8,dep*.8/Math.max(1e-8,Math.hypot(tx,ty,tz)));accumulate(i,floor.x*dep-tx*fr,floor.y*dep-ty*fr,floor.z*dep-tz*fr);deep=Math.max(deep,.004-d);if(react)react(samples[i],x,y,z,floor.x*dep,floor.y*dep,floor.z*dep);}}
       for(const hand of presses){let dx=x-hand.x,dy=y-hand.y,dz=z-hand.z,d=Math.hypot(dx,dy,dz);if(d<hand.r&&d>1e-7){const dep=Math.min(.022,hand.r-d),m=dep/d;accumulate(i,dx*m,dy*m,dz*m);if(react)react(samples[i],x,y,z,dx*m,dy*m,dz*m);}}
     }
     for(let i=0;i<n;i++)if(hits[i]){let k=i*3,f=1/Math.max(1,hits[i]*.45),dx=correction[k]*f,dy=correction[k+1]*f,dz=correction[k+2]*f,m=Math.min(1,.025/Math.max(1e-9,Math.hypot(dx,dy,dz)));p[k]+=dx*m;p[k+1]+=dy*m;p[k+2]+=dz*m;}
@@ -53,7 +59,7 @@ export function createTissue(a,restSkin){
     p[a0]+=dl*ax;p[a0+1]+=dl*ay;p[a0+2]+=dl*az;p[b]+=dl*bx;p[b+1]+=dl*by;p[b+2]+=dl*bz;p[c]+=dl*cx;p[c+1]+=dl*cy;p[c+2]+=dl*cz;p[d]+=dl*dx;p[d+1]+=dl*dy;p[d+2]+=dl*dz;
   }
   function step(gravity,floor,presses=[],react=null){
-    old.set(p);edgeLambda.fill(0);volLambda.fill(0);tetherLambda.fill(0);
+    old.set(p);embed(previousS,samples);edgeLambda.fill(0);volLambda.fill(0);tetherLambda.fill(0);
     for(let i=0;i<n;i++){let k=i*3;for(let q=0;q<3;q++){let j=k+q;vel[j]=vel[j]*.965+gravity[q]*h;p[j]+=vel[j]*h;}}
     for(let iter=0;iter<3;iter++){
       for(let i=0;i<n;i++){let k=i*3,alpha=a.compliance[i]/(h*h);for(let j=k;j<k+3;j++){let dl=(-(p[j]-target[j])-alpha*tetherLambda[j])/(1+alpha);dl=Math.max(-.028,Math.min(.028,dl));p[j]+=dl;tetherLambda[j]+=dl;}}

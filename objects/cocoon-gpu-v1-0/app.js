@@ -32,14 +32,14 @@ function patchHero(s){
   replace('const screen = context.getCurrentTexture().createView();','const screen = xr ? xr.screen : context.getCurrentTexture().createView();');
   replace('for (const l of targets.lens) quad','if (!xr) for (const l of targets.lens) quad');
   replace('      p.setPipeline(pipe);\n      p.setBindGroup(0, g);','      p.setPipeline(pipe);\n      if (xr && pipe === finalPipe) { p.setViewport(xr.x, xr.y, xr.width, xr.height, 0, 1); p.setScissorRect(xr.x, xr.y, xr.width, xr.height); }\n      p.setBindGroup(0, g);');
-  replace('ssam(sketch, settings);','globalThis.cocoonRuntime.start(sketch);');
+  replace('ssam(sketch, settings);','await globalThis.cocoonRuntime.start(sketch);');
   return s;
 }
 function patchPost(s){
   const a='  var c = textureSampleLevel(src, smp, o.uv, 0.0).rgb;';
   const b='  return vec4f(c, 1.0);\n}';
   if(!s.includes(a)||!s.includes(b))throw Error("Post shader patch mismatch");
-  return s.replace(a,'  let sample = textureSampleLevel(src, smp, o.uv, 0.0);\n  let ar = post.tint.w > 0.5;\n  let coverage = select(1.0, clamp(sample.a, 0.0, 1.0), ar);\n  var c = sample.rgb / max(coverage, 0.001);').replace(b,'  return vec4f(clamp(c, vec3f(0.0), vec3f(1.0)) * coverage, coverage);\n}');
+  return s.replace(a,'  let srcColor = textureSampleLevel(src, smp, o.uv, 0.0);\n  let ar = post.tint.w > 0.5;\n  let coverage = select(1.0, clamp(srcColor.a, 0.0, 1.0), ar);\n  var c = srcColor.rgb / max(coverage, 0.001);').replace(b,'  return vec4f(clamp(c, vec3f(0.0), vec3f(1.0)) * coverage, coverage);\n}');
 }
 const cache=new Map();
 async function fetchText(url){const r=await fetch(url);if(!r.ok)throw Error(r.status+' '+url);return r.text()}
@@ -78,13 +78,13 @@ function updateControls(pose,dt){
  rig.updateMatrixWorld(true);
  const head=new THREE.Matrix4().multiplyMatrices(rig.matrixWorld,new THREE.Matrix4().fromArray(pose.transform.matrix));
  const viewer=new THREE.Vector3().setFromMatrixPosition(head);
- const forward=new THREE.Vector3(0,0,-1).transformDirection(head);
+ const viewRight=new THREE.Vector3(1,0,0).transformDirection(head);viewRight.y=0;viewRight.normalize();
  const left=sources.find(s=>s?.handedness==='left'),right=sources.find(s=>s?.handedness==='right');
  const l=stick(left?.gamepad),r=stick(right?.gamepad);
  physics.pollGrips();
- if(l[0])physics.adjustModelSide(l[0]*1.4*dt,forward);
+ if(l[0])physics.adjustModelSide(l[0],dt,viewRight);
  const y=Math.abs(l[1])>Math.abs(r[1])?l[1]:r[1];
- if(y)physics.adjustModelDepth(-y*1.4*dt,viewer,forward);
+ if(y)physics.adjustModelDepth(y,dt,viewer);
  if(Math.abs(r[0])<.3)snapReady=true;
  if(snapReady&&Math.abs(r[0])>.7&&!physics.isHolding('right')){snapReady=false;const before=viewer.clone();rig.rotation.y-=Math.sign(r[0])*Math.PI/6;rig.updateMatrixWorld(true);const after=new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().multiplyMatrices(rig.matrixWorld,new THREE.Matrix4().fromArray(pose.transform.matrix)));rig.position.add(before.sub(after));rig.updateMatrixWorld(true);}
  physics.update(dt);

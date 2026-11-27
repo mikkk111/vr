@@ -9,3 +9,11 @@ Read the latest repository files before edits. Register every new release in `ob
 ## Catalogue ordering
 
 The homepage must always display the most recently published project or version first. Keep the manifest in chronological insertion order (oldest first), append new entries, and render a reversed copy on the homepage. When publishing a substantive update at an existing URL, move that entry to the end of the manifest so it appears first; preserve all other entries and URLs. Verify that the latest project is first after every publication.
+
+## Native WebGPU baseline — Zelda GPU V14.3
+
+On 27 November 2026 the project owner reported that native WebGPU passthrough works on their physical Quest 3 after the V14.3 initialisation fix. This is user-reported success, not an independent hardware benchmark or full controller regression test.
+
+Use `objects/zelda-gpu-v14-3/index.html` (blob `a07d057491ecd6aee2c0390058109dc4e0d3f4a9`, commit `a537866abec959b1b89d91f4be18b6cfd5831fb7`) as the known-working starting point for every future native WebGPU experiment. Preserve that page unchanged. Next release: V14.4. Keep Three.js 0.186.1 pinned unless explicitly testing an upgrade.
+
+Critical invariant: set `renderer.xr.enabled = true` **before** `await renderer.init()` so the WebGPU backend requests an XR-compatible adapter. Set the reference space and framebuffer scale before session creation. Native immersive AR requests `['local-floor','webgpu']`; verify the actual WebGPU backend and XR GPU binding, with no silent WebGL fallback. Preserve transparent passthrough, disabled native XR MSAA, conservative GPU safe mode, and persistent diagnostics. Preserve the shared v13 controller engine (`shared/zelda-v13/physics-grab.js`, blob `9f206b64bbe1a483f429489e54aa85cdc2f489a7`) and existing WebGL projects. Do not replace the working WebGL template globally; future WebGPU releases are separate and independently testable. Keep the V14.3 fallback URL in the catalogue.

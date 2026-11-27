@@ -19,7 +19,8 @@ export function projectHull(point,planes,iterations=6){
 // and pelvis, instead of forcing the distal joint to bear the whole load.
 export function pullForces(error,velocity,gravity,mass,heft=1,handCount=1){
   const weight=Math.max(.25,heft),s=Math.sqrt(weight),distance=error.length(),assist=THREE.MathUtils.smoothstep(distance,.085,.30);
-  const f=error.clone().multiplyScalar(220/s).addScaledVector(velocity,-22).sub(gravity).multiplyScalar(mass);
+  const effectiveMass=Math.max(2.4,mass); // A hand must also move its connected forearm.
+  const f=error.clone().multiplyScalar(220/s).addScaledVector(velocity,-22).multiplyScalar(effectiveMass).addScaledVector(gravity,-mass);
   f.clampLength(0,Math.min(480,Math.max(115,mass*100))/s);
   const drag=error.clone().multiplyScalar(3500/s).addScaledVector(velocity,-65).clampLength(0,1100/s/Math.max(1,handCount));
   drag.multiplyScalar(assist);

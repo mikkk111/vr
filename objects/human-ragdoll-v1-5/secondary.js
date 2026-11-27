@@ -8,7 +8,8 @@ export function springStep(state,acc,dt,region,settings,gravity=[0,0,0],contact=
   const steps=Math.max(1,Math.ceil(dt*240)),h=dt/steps,damping=clamp(chest?settings.chestDamp:settings.hipDamp,.15,1.4),firmness=clamp(chest?settings.chestFirm:settings.hipFirm,.35,1.6);
   for(let k=0;k<steps;k++)for(let i=0;i<3;i++){
     const omega=2*Math.PI*f[i]*firmness,cap=region.bounds[i],x=state.x[i],v=state.v[i];
-    const g=clamp(gravity[i]*settings.sag*gain,-28,28);
+    const sagLimit=omega*omega*cap*.62*(1+.9*.62**4);
+    const g=clamp(gravity[i]*settings.sag*gain*.20,-sagLimit,sagLimit);
     const drive=clamp(-acc[i]*gain+g+contact[i]*gain,-85,85);
     const a=drive-2*damping*omega*v-omega*omega*x*(1+.9*(x/cap)**4);
     state.v[i]=clamp(v+a*h,-1.8,1.8);state.x[i]=clamp(x+state.v[i]*h,-cap,cap);
@@ -77,7 +78,7 @@ export function createSecondary(THREE,mesh,fit){
   const {masks}=buildMasks(base,geo.attributes.skinIndex.array,geo.attributes.skinWeight.array,fit),rows=makeRows(base,normal,geo.index.array,masks);
   pAttr.setUsage(THREE.DynamicDrawUsage);nAttr.setUsage(THREE.DynamicDrawUsage);
   const states=regions.map(r=>({x:[0,0,0],v:[0,0,0],acc:[0,0,0],previous:null,velocity:new THREE.Vector3(),center:new THREE.Vector3(...r.center).sub(new THREE.Vector3(...fit.rest[fit.shapes[r.owner].root]))}));
-  const q=new THREE.Quaternion(),aq=new THREE.Quaternion(),scale=new THREE.Vector3(),point=new THREE.Vector3(),velocity=new THREE.Vector3(),acceleration=new THREE.Vector3();let dirty=false;const touchHistory=new Map();
+  const q=new THREE.Quaternion(),aq=new THREE.Quaternion(),scale=new THREE.Vector3(),point=new THREE.Vector3(),velocity=new THREE.Vector3(),acceleration=new THREE.Vector3();let dirty=false;const touchHistory=new Map();let contactCount=0;
   const previousOffsets=new Float64Array(states.length*3);
   function write(force=false){
     let delta=0;for(let r=0;r<states.length;r++)for(let j=0;j<3;j++){const k=r*3+j,d=states[r].x[j];delta=Math.max(delta,Math.abs(previousOffsets[k]-d));}
@@ -93,7 +94,7 @@ export function createSecondary(THREE,mesh,fit){
   }
   function reset(){touchHistory.clear();for(const s of states){s.x.fill(0);s.v.fill(0);s.acc.fill(0);s.previous=null;s.velocity.set(0,0,0);}if(dirty)write(true);}
   function update(model,anchor,dt,settings,gravityOn=true,controllers=[]){
-    if(!(dt>0))return;if(dt>.12){reset();return;}
+    contactCount=0;if(!(dt>0))return;if(dt>.12){reset();return;}
     anchor.updateWorldMatrix(true,false);anchor.getWorldQuaternion(aq);anchor.getWorldScale(scale);const unit=Math.max(.1,scale.x);
     for(let i=0;i<states.length;i++){
       const r=regions[i],s=states[i],rotation=model.rotations[r.owner];point.copy(s.center).applyQuaternion(rotation).add(model.positions[r.owner]);anchor.localToWorld(point);
@@ -119,14 +120,18 @@ export function createSecondary(THREE,mesh,fit){
         for(const [a,b,c,d] of shape.planes)if(c*side>1e-6){const z=-(a*cur[0]+b*cur[1]+d)/c;surface=side>0?Math.min(surface,z):Math.max(surface,z);}
         // Use the authored region surface instead of treating the expanded
         // collision envelope as the visible skin. Limit to the actual hull.
-        const authored=r.center[2]-rest[2]+side*.018+s.x[2];
+        let nearest=Infinity,authored=null;
+        for(const sample of r.contactSurface){const d=(sample[0]-cur[0])**2+(sample[1]-cur[1])**2;if(d<nearest){nearest=d;authored=sample[2];}}
+        if(authored===null||nearest>.036**2){history.active=false;history.cool=0;continue;}
+        authored+=s.x[2]*Math.max(0,1-Math.hypot(dx,dy));
         surface=side>0?Math.min(surface,authored):Math.max(surface,authored);
         const response=contactDrive(prev,cur,surface,side,dt,.045/unit,settings.contact,history);
+        if(response.active)contactCount++;
         const falloff=Math.max(0,1-(dx*dx+dy*dy)*.65);
         for(let j=0;j<3;j++){force[j]+=response.force[j]*falloff;s.v[j]=clamp(s.v[j]+response.impulse[j]*falloff,-1.8,1.8);}
       }
       springStep(s,s.acc,dt,r,settings,g,force);
     }const active=new Set(controllers.map(c=>c.key));for(const key of touchHistory.keys())if(!active.has(key.split(':')[0]))touchHistory.delete(key);write();
   }
-  return {update,reset,rows:rows.length,states};
+  return {update,reset,rows:rows.length,states,get contacts(){return contactCount;}};
 }

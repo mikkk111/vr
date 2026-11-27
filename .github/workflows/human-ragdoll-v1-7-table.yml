@@ -1,0 +1,31 @@
+name: Import V1.7 CC0 rustic table
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'objects/human-ragdoll-v1-7/import-table.py'
+      - '.github/workflows/human-ragdoll-v1-7-table.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: human-ragdoll-v1-7-table
+  cancel-in-progress: false
+jobs:
+  import-table:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Download and embed original Poly Haven textures
+        run: python3 objects/human-ragdoll-v1-7/import-table.py
+      - name: Commit verified asset
+        run: |
+          git add objects/human-ragdoll-v1-7/assets/table.glb objects/human-ragdoll-v1-7/assets/table-asset.json
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Store official CC0 rustic table GLB and checksums'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi

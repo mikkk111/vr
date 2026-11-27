@@ -1,0 +1,52 @@
+name: Reconstruct Human Soft Body V1.0 asset
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'objects/human-softbody-v1-0/.transfer/**'
+      - '.github/workflows/reconstruct-human-softbody-v1.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: reconstruct-human-softbody-v1
+  cancel-in-progress: false
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Verify and assemble binary
+        run: |
+          set -euo pipefail
+          dir=objects/human-softbody-v1-0
+          dest="$dir/assets/character-softbody-v1.glb"
+          if [ -f "$dest" ]; then
+            echo 'dafef1c0d53d53099bb567c7d134f894bdc6b9e6d5a679c71557b9a64a4b85ee  '"$dest" | sha256sum -c -
+            exit 0
+          fi
+          for n in 00 01 02 03 04 05; do test -f "$dir/.transfer/part-$n.xzpart"; done
+          cat "$dir"/.transfer/part-*.xzpart > /tmp/human-softbody-v1.xz
+          echo 'f8c23469f6597cf9db63e43a937bebf810e7e72730e1cb7b048c69cb2771bad0  /tmp/human-softbody-v1.xz' | sha256sum -c -
+          xz -dc /tmp/human-softbody-v1.xz > "$dest"
+          test "$(wc -c < "$dest")" -eq 6284328
+          echo 'dafef1c0d53d53099bb567c7d134f894bdc6b9e6d5a679c71557b9a64a4b85ee  '"$dest" | sha256sum -c -
+          test "$(git hash-object "$dest")" = cbc832abf510b7494d13d30d90756ab3bfdea3c3
+          git add "$dest"
+          git rm -r "$dir/.transfer"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('objects/manifest.json')
+          d=json.loads(p.read_text())
+          o=next(x for x in d['objects'] if x['id']=='human-softbody-v1-0')
+          o['status']='experimental'
+          o['description']=o['description'].replace('Prepared GLB upload pending; local file picker available.', 'Prepared GLB hosted and checksum verified; automatic loading enabled.')
+          o['modelBytes']=6284328
+          p.write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
+          PY
+          git add objects/manifest.json
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Assemble and verify Human Soft Body V1.0 GLB'
+          git push origin HEAD:main

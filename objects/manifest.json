@@ -212,13 +212,35 @@
       "title": "Discobolus GPU V1.0 — Gold in VR",
       "url": "./objects/discobolus-gpu-v1-0/?v=1.0",
       "modelPath": "https://raw.githubusercontent.com/marcofugaro/three-advanced-techniques/97c1e27f0c34927128a40b2dfe75315e0ac6e7a7/examples/models/discobulus.glb",
-      "description": "Opaque muted-blue immersive studio with original Discobolus sculpture, real GPU Gray–Scott gold relief, controller painting and erasing, and two mesh detail modes. Stereo-friendly adapted lighting; Quest testing pending.",
+      "description": "Original opaque muted-blue immersive studio with GPU Gray–Scott gold relief. Owner confirmed both Balanced and Original Fine modes work on Quest 3 on 27 November 2026.",
       "author": "Marco Fugaro (original demo and simulation)",
       "license": "MIT (code)",
       "sourceUrl": "https://three-advanced-techniques.com/examples/discobulus-reaction-diffusion/",
       "sourceCommit": "97c1e27f0c34927128a40b2dfe75315e0ac6e7a7",
       "version": "1.0",
-      "status": "experimental"
+      "status": "user-tested",
+      "hardwareVerification": {
+        "device": "Meta Quest 3",
+        "date": "2026-11-27",
+        "source": "project owner",
+        "scope": "Original immersive VR experience, both mesh quality settings",
+        "independent": false
+      }
+    },
+    {
+      "id": "discobolus-gpu-v1-1",
+      "title": "Discobolus GPU V1.1 — VR & Passthrough",
+      "url": "./objects/discobolus-gpu-v1-1/?v=1.1",
+      "modelPath": "https://raw.githubusercontent.com/marcofugaro/three-advanced-techniques/97c1e27f0c34927128a40b2dfe75315e0ac6e7a7/examples/models/discobulus.glb",
+      "description": "Original blue studio plus optional native WebGPU mixed reality. Both mesh qualities, marble/gold lighting, painting and Zelda controls preserved. New passthrough mode awaits Quest testing.",
+      "author": "Marco Fugaro (original demo and simulation)",
+      "license": "MIT (code)",
+      "sourceUrl": "https://three-advanced-techniques.com/examples/discobulus-reaction-diffusion/",
+      "sourceCommit": "97c1e27f0c34927128a40b2dfe75315e0ac6e7a7",
+      "version": "1.1",
+      "status": "experimental",
+      "hardwareVerification": null,
+      "previousVersion": "discobolus-gpu-v1-0"
     }
   ]
 }

@@ -12,7 +12,7 @@ export function createTissue(a,restSkin){
   }
   const edgeLambda=new Float64Array(el.length), samples=a.samples, s=new Float64Array(samples.length*3), restS=new Float64Array(samples.length*3), correction=new Float64Array(p.length), hits=new Uint16Array(n);
   for(let i=0;i<samples.length;i++)restS.set(restSkin.subarray(samples[i]*3,samples[i]*3+3),i*3);
-  const previousS=new Float64Array(samples.length*3), denom=new Float64Array(samples.length);
+  const centers=new Float64Array(samples.length*3), restCenters=new Float64Array(samples.length*3), previousS=new Float64Array(samples.length*3), denom=new Float64Array(samples.length);
   for(let i=0;i<samples.length;i++){let v=samples[i]*8;for(let j=0;j<8;j++)denom[i]+=a.blend[v+j]**2;}
   const stats={nodes:n,tets:dets.length,edges:el.length,samples:samples.length,contacts:0,penetration:0,volumeRatio:1,inverted:0};
   const key=(x,y,z)=>((x+2048)*4096+(y+2048))*4096+(z+2048);
@@ -21,19 +21,39 @@ export function createTissue(a,restSkin){
     for(let i=0;i<count;i++){const v=(indices?indices[i]:i)*8;let x=0,y=0,z=0;for(let j=0;j<8;j++){let k=a.cellCorners[v+j]*3,w=a.blend[v+j];x+=p[k]*w;y+=p[k+1]*w;z+=p[k+2]*w;}out[i*3]=x;out[i*3+1]=y;out[i*3+2]=z;}
     return out;
   }
+  // Collision spheres are centred slightly underneath the actual skin. Transform
+  // the rest normal with the trilinear cage Jacobian's cofactor, so the spheres
+  // move with bent/deformed tissue without leaving a full sphere diameter gap.
+  const bits=[[0,0,0],[1,0,0],[0,1,0],[0,0,1],[1,1,0],[1,0,1],[0,1,1],[1,1,1]],frac=new Float64Array(samples.length*3);
+  for(let i=0;i<samples.length;i++){let v=samples[i]*8;for(let j=0;j<8;j++)for(let k=0;k<3;k++)frac[i*3+k]+=a.blend[v+j]*bits[j][k];}
+  function sphereCenters(out,source,positions){
+    out.set(source);if(!a.sampleNormals)return;
+    for(let i=0;i<samples.length;i++){
+      const k=i*3,v=samples[i]*8,fx=frac[k],fy=frac[k+1],fz=frac[k+2];
+      let ax=0,ay=0,az=0,bx=0,by=0,bz=0,cx=0,cy=0,cz=0;
+      for(let j=0;j<8;j++){let bit=bits[j],q=a.cellCorners[v+j]*3,x=positions[q],y=positions[q+1],z=positions[q+2],u=bit[0]?fx:1-fx,w=bit[1]?fy:1-fy,s=bit[2]?fz:1-fz,dx=(bit[0]?1:-1)*w*s,dy=(bit[1]?1:-1)*u*s,dz=(bit[2]?1:-1)*u*w;
+        ax+=x*dx;ay+=y*dx;az+=z*dx;bx+=x*dy;by+=y*dy;bz+=z*dy;cx+=x*dz;cy+=y*dz;cz+=z*dz;}
+      const nx=a.sampleNormals[k],ny=a.sampleNormals[k+1],nz=a.sampleNormals[k+2],
+        x=nx*(by*cz-bz*cy)+ny*(cy*az-cz*ay)+nz*(ay*bz-az*by),
+        y=nx*(bz*cx-bx*cz)+ny*(cz*ax-cx*az)+nz*(az*bx-ax*bz),
+        z=nx*(bx*cy-by*cx)+ny*(cx*ay-cy*ax)+nz*(ax*by-ay*bx),d=Math.hypot(x,y,z);
+      if(d>1e-9){out[k]-=.012*x/d;out[k+1]-=.012*y/d;out[k+2]-=.012*z/d;}
+    }
+  }
+  sphereCenters(restCenters,restS,rest);
   function accumulate(i,x,y,z){
     const v=samples[i]*8,inv=1/Math.max(.125,denom[i]);
     for(let j=0;j<8;j++){const k=a.cellCorners[v+j],w=a.blend[v+j]*inv; if(Math.abs(w)<1e-8)continue;correction[k*3]+=x*w;correction[k*3+1]+=y*w;correction[k*3+2]+=z*w;hits[k]++;}
   }
   function contact(floor,presses,react){
-    embed(s,samples);correction.fill(0);hits.fill(0);
+    embed(s,samples);sphereCenters(centers,s,p);correction.fill(0);hits.fill(0);
     const cell=.034,margin=.029,map=new Map();let pairs=0,deep=0;
-    for(let i=0;i<samples.length;i++){let k=i*3,x=s[k],y=s[k+1],z=s[k+2],ix=Math.floor(x/cell),iy=Math.floor(y/cell),iz=Math.floor(z/cell);
+    for(let i=0;i<samples.length;i++){let k=i*3,x=s[k],y=s[k+1],z=s[k+2],ix=Math.floor(centers[k]/cell),iy=Math.floor(centers[k+1]/cell),iz=Math.floor(centers[k+2]/cell);
       for(let u=-1;u<=1;u++)for(let v=-1;v<=1;v++)for(let w=-1;w<=1;w++){const bucket=map.get(key(ix+u,iy+v,iz+w));if(!bucket)continue;
-        for(const j of bucket){const q=j*3;let rx=restS[k]-restS[q],ry=restS[k+1]-restS[q+1],rz=restS[k+2]-restS[q+2];const restDist=Math.hypot(rx,ry,rz);
+        for(const j of bucket){const q=j*3;let rx=restCenters[k]-restCenters[q],ry=restCenters[k+1]-restCenters[q+1],rz=restCenters[k+2]-restCenters[q+2];const restDist=Math.hypot(rx,ry,rz);
           if(a.exclusionOffsets){let lo=a.exclusionOffsets[i],hi=a.exclusionOffsets[i+1]-1,skip=false;while(lo<=hi){let mid=(lo+hi)>>>1,k=a.exclusionIndices[mid];if(k===j){skip=true;break;}if(k<j)lo=mid+1;else hi=mid-1;}if(skip)continue;}else if(restDist<.075)continue;
           const separation=Math.min(margin,restDist*.85);if(separation<1e-5)continue;
-          let dx=x-s[q],dy=y-s[q+1],dz=z-s[q+2],d=Math.hypot(dx,dy,dz);if(d>=separation)continue;
+          let dx=centers[k]-centers[q],dy=centers[k+1]-centers[q+1],dz=centers[k+2]-centers[q+2],d=Math.hypot(dx,dy,dz);if(d>=separation)continue;
           if(d<1e-7){d=Math.hypot(rx,ry,rz);dx=rx/d;dy=ry/d;dz=rz/d;d=0;}else{dx/=d;dy/=d;dz/=d;}
           const dep=separation-d,step=Math.min(.012,dep*.47);
           let tx=(x-previousS[k])-(s[q]-previousS[q]),ty=(y-previousS[k+1])-(s[q+1]-previousS[q+1]),tz=(z-previousS[k+2])-(s[q+2]-previousS[q+2]),dot=tx*dx+ty*dy+tz*dz;

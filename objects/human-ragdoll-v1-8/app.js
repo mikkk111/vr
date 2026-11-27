@@ -12,12 +12,12 @@ const renderer=new THREE.WebGPURenderer({alpha:true,antialias:false,depth:true,s
 renderer.xr.enabled=true;renderer.xr.setReferenceSpaceType('local-floor');renderer.xr.setFramebufferScaleFactor(.65);await renderer.init();
 if(!renderer.backend?.isWebGPUBackend)throw Error('Native WebGPU required');
 renderer.setClearColor(0,0);renderer.setPixelRatio(Math.min(devicePixelRatio,.85));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.NoToneMapping;$('scene').appendChild(renderer.domElement);
-const scene=new THREE.Scene(),rig=new THREE.Group(),anchor=new THREE.Group();scene.add(rig,anchor);anchor.position.set(0,1.22,-2);const handleAnchor=new THREE.Group();handleAnchor.position.copy(anchor.position);scene.add(handleAnchor);const tableHandle=new THREE.Group();scene.add(tableHandle);let tableGrip=null,wasTableHeld=false;
+const scene=new THREE.Scene(),rig=new THREE.Group(),anchor=new THREE.Group();scene.add(rig,anchor);anchor.position.set(0,1.22,-2);const handleAnchor=new THREE.Group();handleAnchor.position.copy(anchor.position);scene.add(handleAnchor);const tableHandle=new THREE.Group();scene.add(tableHandle);let tableGrip=null,wasTableHeld=false,selectedObject=null;
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.01,100);rig.add(camera);camera.position.set(0,1.6,2.4);
 const orbit=new OrbitControls(camera,renderer.domElement);orbit.target.set(0,1,-2);orbit.enableDamping=true;orbit.mouseButtons.LEFT=null;orbit.mouseButtons.RIGHT=THREE.MOUSE.ROTATE;orbit.update();
 scene.add(new THREE.HemisphereLight(0xffffff,0x847e75,1.5));const light=new THREE.DirectionalLight(0xffefd9,2);light.position.set(-2,4,3);scene.add(light);
 const fill=new THREE.DirectionalLight(0xdce7ff,.7);fill.position.set(2,1,1);scene.add(fill);
-const [J,fit,gl,grip]=await Promise.all([initJolt(),fetch('../human-ragdoll-v1-5/fit.json?v=1.5').then(r=>{if(!r.ok)throw Error('Missing fit');return r.json()}),new GLTFLoader().loadAsync('../human-softbody-v1-0/assets/character-softbody-v1.glb'),createGrabPhysics({renderer,rig,modelAnchor:handleAnchor,onStatus:status,canGrabModel:liveWholeHit,beforeFirstGrab:recenterWholeGrip})]);
+const [J,fit,gl,grip]=await Promise.all([initJolt(),fetch('../human-ragdoll-v1-5/fit.json?v=1.5').then(r=>{if(!r.ok)throw Error('Missing fit');return r.json()}),new GLTFLoader().loadAsync('../human-softbody-v1-0/assets/character-softbody-v1.glb'),createGrabPhysics({renderer,rig,modelAnchor:handleAnchor,onStatus:status,canGrabModel:liveWholeHit,beforeFirstGrab:recenterWholeGrip,canAcquire:()=>selectedObject!=='table'})]);
 let mesh;gl.scene.traverse(o=>{if(o.isSkinnedMesh)mesh=o;});if(!mesh)throw Error('Original SkinnedMesh missing');
 gl.scene.updateMatrixWorld(true);
 const bones=mesh.skeleton.bones;if(bones.map(b=>b.name).join('|')!==fit.names.join('|'))throw Error('Fit does not match skeleton');
@@ -33,7 +33,7 @@ const tablePromise=loadTable().then(async asset=>{
     $('tableStatus').textContent+=' · 32 kg · collision active';$('dropTable').disabled=false;
   }catch(e){$('tableStatus').textContent+=' · collision error: '+e.message;console.error('TABLE COLLISION',e);}
   tableHandle.position.copy(asset.root.position);tableHandle.quaternion.copy(asset.root.quaternion);
-  tableGrip=await createGrabPhysics({renderer,rig,modelAnchor:tableHandle,onStatus:msg=>status('Table: '+msg),canGrabModel:liveTableHit,beforeFirstGrab:beginTableGrip});
+  tableGrip=await createGrabPhysics({renderer,rig,modelAnchor:tableHandle,onStatus:msg=>status('Table: '+msg),canGrabModel:liveTableHit,beforeFirstGrab:beginTableGrip,canAcquire:()=>selectedObject!=='character'});
   tableGrip.attachModel(asset.size);$('tableScale').disabled=false;
   if(asset.warning)console.warn('TABLE ASSET FALLBACK',asset.warning);
   return asset;
@@ -77,6 +77,7 @@ function tableHitScore(hand,ray){
 function liveWholeHit(hand,ray){if(anyGrip(tableGrip))return false;const c=characterHitScore(hand,ray),t=tableHitScore(hand,ray);return Number.isFinite(c)&&c<=t;}
 function liveTableHit(hand,ray){if(anyGrip(grip))return false;const t=tableHitScore(hand,ray),c=characterHitScore(hand,ray);return Number.isFinite(t)&&t<c;}
 function beginTableGrip(){
+  selectedObject='table';
   tableHandle.position.copy(furniture.root.position);tableHandle.quaternion.copy(furniture.root.quaternion);
   if(model.table)model.setTableHeld(true);
 }
@@ -93,6 +94,7 @@ function applyTableHandle(force=false){
   $('tableScale').value=s;$('tableScaleValue').textContent=Math.round(s*100)+'%';
 }
 function recenterWholeGrip(){
+  selectedObject='character';
   releaseAll();
   const center=model.poseBounds().getCenter(V());
   const shift=center.clone().multiplyScalar(anchor.scale.x).applyQuaternion(anchor.quaternion);
@@ -140,7 +142,7 @@ function draw(){
 }
 function release(key){const heldHand=held.get(key);if(!heldHand)return;heldHand.marker.removeFromParent();heldHand.marker.geometry.dispose();heldHand.marker.material.dispose();held.delete(key);}
 function releaseAll(){for(const k of [...held.keys()])release(k);states.clear();nextPick.clear();}
-function reset(){releaseAll();tableGrip?.reset();wasTableHeld=false;grip.reset();syncWholePose(0,true);secondary.reset();model.dispose();model=createRagdoll(J,fit);if(furniture){furniture.root.scale.setScalar(1);furniture.root.position.set(.72,.012,-2.95);furniture.root.quaternion.identity();$('tableScale').value=1;$('tableScaleValue').textContent='100%';try{model.installTable(furniture.parts,anchor);furniture.root.position.copy(model.table.position);furniture.root.quaternion.copy(model.table.rotation);$('dropTable').disabled=false;}catch(e){$('tableStatus').textContent='Table visible; collision error: '+e.message;}}model.setBounce(motion.bounce);lastFloor.set(Infinity,0,0);updateFloor();draw();paused=true;firstDrop=true;acc=0;$('run').textContent='Drop / start';status('Rest pose reset');}
+function reset(){selectedObject=null;releaseAll();tableGrip?.reset();wasTableHeld=false;grip.reset();syncWholePose(0,true);secondary.reset();model.dispose();model=createRagdoll(J,fit);if(furniture){furniture.root.scale.setScalar(1);furniture.root.position.set(.72,.012,-2.95);furniture.root.quaternion.identity();$('tableScale').value=1;$('tableScaleValue').textContent='100%';try{model.installTable(furniture.parts,anchor);furniture.root.position.copy(model.table.position);furniture.root.quaternion.copy(model.table.rotation);$('dropTable').disabled=false;}catch(e){$('tableStatus').textContent='Table visible; collision error: '+e.message;}}model.setBounce(motion.bounce);lastFloor.set(Infinity,0,0);updateFloor();draw();paused=true;firstDrop=true;acc=0;$('run').textContent='Drop / start';status('Rest pose reset');}
 function start(key,r,quiet=false,nearPoint=null){
   if(grip.isHolding('left')||grip.isHolding('right'))return false;
   if(held.has(key))return true;
@@ -182,7 +184,7 @@ $('enter').onclick=async()=>{let session;try{session=await navigator.xr.requestS
   session.addEventListener('selectstart',e=>{const k=e.inputSource.handedness,r=sourceRay(e.inputSource,e.frame);if(r&&k!=='none')start(k,r,false,gripPoint(e.inputSource,e.frame));});session.addEventListener('selectend',e=>release(e.inputSource.handedness));
   status('Passthrough active — side grips select table or character; both grips resize selected object');
 }catch(e){if(session)await session.end().catch(()=>{});status('XR error: '+e.message);}};
-renderer.xr.addEventListener('sessionend',()=>{releaseAll();tableGrip?.releaseAll();if(model.table?.held){applyTableHandle(true);model.setTableHeld(false);}wasTableHeld=false;secondary.reset();orbit.enabled=true;camera.position.set(0,1.6,2.4);orbit.update();});
+renderer.xr.addEventListener('sessionend',()=>{selectedObject=null;releaseAll();tableGrip?.releaseAll();if(model.table?.held){applyTableHandle(true);model.setTableHeld(false);}wasTableHeld=false;secondary.reset();orbit.enabled=true;camera.position.set(0,1.6,2.4);orbit.update();});
 window.addEventListener('resize',()=>{if(!renderer.xr.isPresenting){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}});
 renderer.backend.device?.lost.then(e=>status('GPU lost: '+e.message));
 renderer.backend.device?.addEventListener('uncapturederror',e=>status('GPU validation: '+e.error.message));
@@ -192,7 +194,7 @@ $('enter').disabled=!supported;$('enter').textContent=supported?'ENTER PASSTHROU
 updateFloor();draw();await tablePromise;await renderer.compileAsync(scene,camera);status('Ready: side grips select and resize table or character independently. Table uses 512px textures.');
 let last=0,begin=0,frames=0,physicsMs=0;
 await renderer.setAnimationLoop((time,frame)=>{try{const realDt=last?Math.max(0,(time-last)/1000):0,dt=Math.min(.05,realDt);last=time;if(!begin)begin=time;frames++;
-  if(renderer.xr.isPresenting){grip.pollGrips();tableGrip?.pollGrips();xrUpdate(dt,frame);}else{orbit.update();if(held.has('mouse'))move('mouse',held.get('mouse').ray,dt);}
+  if(renderer.xr.isPresenting){const sources=renderer.xr.getSession()?.inputSources||[];if(!Array.from(sources).some(s=>s.gamepad?.buttons[1]?.pressed||s.gamepad?.buttons[1]?.value>.65)&&!anyGrip(grip)&&!anyGrip(tableGrip))selectedObject=null;grip.pollGrips();tableGrip?.pollGrips();xrUpdate(dt,frame);}else{orbit.update();if(held.has('mouse'))move('mouse',held.get('mouse').ray,dt);}
   grip.update(dt);tableGrip?.update(dt);const tableHeld=anyGrip(tableGrip);const whole=grip.isHolding('left')||grip.isHolding('right');
   if(wasWholeHold&&!whole){grip.setIdlePose(anchor.position,anchor.quaternion);anchorVelocity.set(0,0,0);lastFloor.set(Infinity,0,0);model.wake();}
   else syncWholePose(dt);
@@ -203,7 +205,7 @@ await renderer.setAnimationLoop((time,frame)=>{try{const realDt=last?Math.max(0,
   if(!paused&&!whole){const t=performance.now();updateFloor();acc=Math.min(acc+dt,h*6);let count=0;
     while(acc>=h&&count<6){for(const s of held.values())model.grab(s.index,s.offset,anchor.worldToLocal(s.target.clone()),gravity,h,motion.heft,held.size);model.step(h);acc-=h;count++;}if(count){draw();model.captureTable(anchor);}physicsMs=performance.now()-t;
   }else{acc=0;physicsMs=0;}
-  if(furniture&&model.table){furniture.root.position.copy(model.table.position);furniture.root.quaternion.copy(model.table.rotation);furniture.root.scale.setScalar(model.table.sizeScale);if(!tableHeld)tableGrip?.setIdlePose(model.table.position,model.table.rotation);}
+  if(furniture&&model.table){furniture.root.position.copy(model.table.position);furniture.root.quaternion.copy(model.table.rotation);furniture.root.scale.setScalar(model.table.sizeScale);if(!tableHeld&&tableGrip&&(tableHandle.position.distanceToSquared(model.table.position)>1e-10||1-Math.abs(tableHandle.quaternion.dot(model.table.rotation))>1e-10))tableGrip.setIdlePose(model.table.position,model.table.rotation);}
   const secondaryStart=performance.now();secondary.update(model,anchor,realDt,motion,gravityOn,closeControllers(frame));const secondaryMs=performance.now()-secondaryStart;
   if(time-begin>1000){$('stats').textContent=(frames*1000/(time-begin)).toFixed(1)+' callback FPS | '+physicsMs.toFixed(2)+' ms physics | '+secondaryMs.toFixed(2)+' ms local tissue | '+secondary.contacts+' close contacts | 60 kg | '+([...held.values()].map(s=>fit.shapes[s.index].name).join(', ')||'no grab');begin=time;frames=0;}
   renderer.render(scene,camera);

@@ -500,6 +500,16 @@
       "version": "1.7.1",
       "previousVersion": "human-ragdoll-v1-6",
       "status": "experimental"
+    },
+    {
+      "id": "human-ragdoll-v1-8",
+      "title": "Human Ragdoll V1.8 — Movable Low-Memory Table",
+      "url": "./objects/human-ragdoll-v1-8/?v=1.8",
+      "modelPath": "./objects/human-softbody-v1-0/assets/character-softbody-v1.glb",
+      "description": "Independent table pickup, rotation, resizing and gravity release; 512px textures, original 600 triangle table. Native Quest validation pending.",
+      "version": "1.8",
+      "previousVersion": "human-ragdoll-v1-7",
+      "status": "experimental"
     }
   ]
 }

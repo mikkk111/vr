@@ -3,7 +3,7 @@ import RAPIER from 'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.21.
 
 // No floor, gravity, collision stage or rendered scenery. A fixed collider
 // tracks object's pose while idle, and turns kinematic only during gripping.
-export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus, canGrabModel, beforeFirstGrab}) {
+export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus, canGrabModel, beforeFirstGrab, canAcquire}) {
   await RAPIER.init();
   const world = new RAPIER.World({x:0, y:0, z:0});
   world.timestep = 1 / 60;
@@ -175,7 +175,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus, c
     // avoids constructing enormous Rapier shapes at 1,000m+ object scale.
   }
   function canGrab(hand) {
-    if(!body || !renderer.xr.isPresenting)return false;
+    if(!body || !renderer.xr.isPresenting|| (canAcquire&&!canAcquire()))return false;
     // Once one controller holds object, the other can join the remote grab
     // without both pointing precisely at a tiny figure simultaneously.
     if(activeHands().length===1)return true;

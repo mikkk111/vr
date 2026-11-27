@@ -1,0 +1,33 @@
+name: Compact V1.8 table
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'objects/human-ragdoll-v1-8/compact-table.py'
+      - '.github/workflows/human-ragdoll-v1-8-table.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: human-ragdoll-v1-8-table
+  cancel-in-progress: false
+jobs:
+  compact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Install image encoder
+        run: python3 -m pip install Pillow
+      - name: Repack original asset and verify geometry
+        run: python3 objects/human-ragdoll-v1-8/compact-table.py
+      - name: Commit compact asset
+        run: |
+          git add objects/human-ragdoll-v1-8/assets/
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Store compact 512px table asset'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi

@@ -1,0 +1,6 @@
+# V1.8 — independent table controls
+Aim at the table and hold either side grip to translate or rotate it. Join the second side grip to resize from 10% to 350%. The nearest current posed object wins the first selection; selection is locked until release. Joystick depth/side motion and snap turns apply to the selected object. Desktop size slider is provided. Table collider is kinematic during manipulation and dynamic on release. Its size is independent of character scale. The original ragdoll and tissue settings are retained.
+
+Texture budget: two 512px maps (colour and normal), constant roughness, original 600 triangles. A local compact GLB is preferred, with previous official GLB as fallback, downsampled before GPU upload. A procedural backup remains available if the asset fails to load. Texture memory estimates are theoretical, not measured FPS or device memory. Asset source: https://polyhaven.com/a/painted_wooden_table (CC0). Project-facing text excludes personal names and surnames.
+
+Runtime testing on Quest and live deployment not yet verified.

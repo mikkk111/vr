@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#131b22">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <title>Zelda GPU V14.3 · Human rendering experiment</title>
+  <style>
+    :root{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark}
+    *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101a23}
+    body{background:radial-gradient(ellipse at 50% 55%,#475663 0%,#1d2d38 45%,#0b131c 100%)}
+    #scene{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}
+    #panel{position:absolute;z-index:3;top:clamp(12px,3vw,28px);left:clamp(12px,3vw,28px);width:min(350px,calc(100% - 24px));background:#101821e8;border:1px solid #ffffff23;border-radius:17px;padding:19px;box-shadow:0 20px 50px #0006;backdrop-filter:blur(18px)}
+    .eyebrow{color:#81d6c6;font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase}
+    .versionline{margin:-1px 0 10px;color:#95d6c6;font-size:12px;line-height:1.4}
+    .versionline a{color:#b6e9d8;text-decoration:underline;text-underline-offset:3px}
+    .versionline strong{color:#e6f9f3;font-weight:700}
+    h1{font-size:26px;line-height:1.1;margin:7px 0 7px;letter-spacing:-.025em}
+    .sub{font-size:13px;color:#acbfcc;line-height:1.5;margin-bottom:15px}
+    .primary{width:100%;border:0;border-radius:11px;font-size:15px;font-weight:750;padding:14px 12px;color:#102223;background:#86e8d4;cursor:pointer;touch-action:manipulation}
+    .primary:disabled{opacity:.5;cursor:not-allowed}
+    .controls{display:flex;gap:8px;margin-top:9px}
+    .controls button{flex:1;background:#233442;color:#e7f5f5;border:1px solid #ffffff2b;border-radius:9px;padding:10px 5px;cursor:pointer}
+    #status{margin:12px 0 6px;color:#d3e1e8;font-size:12px;line-height:1.5;min-height:34px;overflow-wrap:anywhere}
+    #filelabel{display:block;font-size:12px;color:#84d8c8;margin-top:8px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}#assetFile{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+    .hint{margin:11px 0 0;border-top:1px solid #ffffff20;padding-top:10px;color:#a3b9c8;font-size:12px;line-height:1.55}
+    .kbd{border:1px solid #ffffff40;border-radius:4px;font-size:10px;padding:1px 4px;color:#e6f7fc}
+    #footer{position:fixed;z-index:2;bottom:15px;left:50%;transform:translateX(-50%);background:#091720bb;border:1px solid #ffffff18;padding:9px 14px;border-radius:11px;color:#c1d0d6;white-space:nowrap;font-size:12px;pointer-events:none}
+    @media(max-width:600px){#panel{padding:14px}h1{font-size:21px}.sub{margin-bottom:9px}#footer{font-size:10px;bottom:8px}}
+  #panel{max-height:calc(100dvh - 35px);overflow:auto}#panel label:not(#filelabel){display:flex;justify-content:space-between;align-items:center;font-size:12px;margin:6px 0}#panel select{max-width:65%;background:#233442;color:#fff;padding:5px}#panel p{font-size:11px;color:#b6d6df;margin:6px 0}#panel a{color:#86e8d4}
+    .project-nav{margin:0 0 14px}.project-nav .main-menu{display:block;padding:12px 14px;border:1px solid #86e8d4;border-radius:9px;color:#c2fff1;text-decoration:none;font-size:15px;font-weight:750;line-height:1.25}.project-nav .main-menu:focus-visible{outline:3px solid white;outline-offset:3px}.project-name{display:block;font-size:24px;font-weight:750;line-height:1.2}.build-version{display:block;color:#86e8d4;font-size:clamp(54px,9vw,76px);font-weight:900;line-height:1.05;letter-spacing:-.055em;margin:4px 0 12px;white-space:nowrap}
+  </style>
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js","three/webgpu":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.webgpu.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"}}</script>
+</head>
+<body>
+  <div id="scene"></div>
+  <section id="panel">
+    <nav class="project-nav" aria-label="Project navigation"><a class="main-menu" href="../../">← Main Menu — All Projects</a></nav>
+    <div class="eyebrow">Meta Quest 3 · Experimental A/B renderer</div>
+    <h1><span class="project-name">Zelda GPU</span><strong class="build-version">V14.3</strong></h1>
+    <div class="versionline"><strong>Shared Zelda v13 controls</strong> · Build V14.3 · XR-compatible GPU initialisation · Three.js 0.186.1</div>
+    <div class="sub">Compare identical human geometry and materials using native WebGPU and WebGL 2. No virtual floor, grid or gravity.</div>
+    <label>Renderer <select id="rendererSelect"><option value="webgpu">Native WebGPU</option><option value="webgl">WebGL 2</option></select></label>
+    <label>Materials <select id="materialSelect"><option value="lit">Lit / original maps</option><option value="unlit">Unlit / colour only</option></select></label>
+    <label>Model <select id="modelSelect"><option value="head">Infinite head scan</option><option value="heidi">Heidi (full body)</option><option value="cube">Diagnostic cube</option></select></label>
+    <p id="backend">Initialising renderer…</p><p id="diag">GPU diagnostics starting…</p><p id="xrFailure" role="alert" style="color:#ffc2a5;white-space:pre-wrap;overflow-wrap:anywhere"></p><details><summary>Technical diagnostics</summary><pre id="xrTrace" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px"></pre><button id="copyTrace" type="button">Copy diagnostic report</button></details><p><a href="https://immersive-web.github.io/webxr-samples/webgpu/" target="_blank" rel="noopener">Independent WebXR WebGPU reference tests</a></p><p><a href="?renderer=webgpu&amp;material=unlit&amp;model=cube&amp;v=14.3">Native WebGPU cube test</a> · <a href="?renderer=webgpu&amp;material=lit&amp;model=head&amp;quality=full&amp;v=14.3">Full-quality WebGPU</a> · <a href="?renderer=webgl&amp;material=lit&amp;model=head&amp;v=14.3">Working WebGL comparison</a></p><p id="fps">Measuring callback fps…</p><p id="lastXR">Last XR sample: none</p>
+    <p id="creditHead">Head scan: Lee Perry-Smith / Infinite-Realities, <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>; geometry and colour, specular, normal maps from <a href="https://threejs.org/examples/webgl_materials_normalmap.html" target="_blank" rel="noopener">Three.js examples</a>. External asset; scaled to 32 cm for inspection.</p>
+    <p id="creditHeidi" hidden>Heidi by jamray747, <a href="https://sketchfab.com/3d-models/heidi-719b33ba7bb44203ab4ad1bc9872bb74" target="_blank" rel="noopener">original model</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Existing repository asset.</p>
+    <button id="enterAR" class="primary" type="button" disabled>CHECKING QUEST SUPPORT…</button>
+    <div class="controls"><button id="reset" type="button">Reset view and object</button></div>
+    <div id="status" role="status">Preparing model-independent 3D scene…</div>
+    <label id="filelabel" for="assetFile">Choose GLB, OBJ or FBX from device</label>
+    <input id="assetFile" type="file" accept=".glb,.obj,.fbx,model/gltf-binary">
+    <div class="hint"><strong>Quest controller mapping</strong>
+      <br><strong>Grip:</strong> aim the Quest target ray at the object and squeeze to grab nearby or remotely; the second grip joins the hold.
+      <br><strong>Move:</strong> position either held controller UP/DOWN/LEFT/RIGHT; distant manipulation uses both hand displacement and aiming direction.
+      <br><strong>Twist:</strong> wrist rotation controls object orientation, including right-hand pitch and roll in two-hand mode.
+      <br><strong>Resize:</strong> both grips together, spread/close hands, linear 10%–350%.
+      <br><strong>Left thumbstick X:</strong> move the object left/right even when unheld.
+      <br><strong>Either thumbstick Y:</strong> pull object closer or push farther, held or unheld.
+      <br><strong>Right thumbstick X:</strong> rotate held object 30°; without right grip, turn view 30°.
+      <br><strong>Release:</strong> model freezes where placed; zero gravity or momentum.
+      <br><br><strong>Desktop:</strong> drag to orbit, scroll to zoom, WASD to navigate.
+    </div>
+  </section>
+  <div id="footer">ZELDA GPU V14.3 · Experimental · No silent GPU fallback</div>
+  <script type="module">
+import * as THREE from 'three';
+import { WebGPURenderer } from 'three/webgpu';
+import { prepareUnlitModel } from '../../shared/zelda-v13/unlit-materials.js?v=unlit-1';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createGrabPhysics } from '../../shared/zelda-v13/physics-grab.js?v=template-1';
+const query = new URLSearchParams(location.search);
+const useWebGL = query.get('renderer') === 'webgl';
+const unlit = query.get('material') === 'unlit' || query.get('model') === 'cube';
+const fullBody = query.get('model') === 'heidi';
+const diagnosticCube = query.get('model') === 'cube';
+const safeGPU = !useWebGL && query.get('quality') !== 'full';
+const source = 'https://threejs.org/examples/models/gltf/LeePerrySmith/';
+const OBJECT_CONFIG = Object.freeze({
+  modelUrl: diagnosticCube ? null : fullBody ? '../heidi/assets/heidi.glb' : source + 'LeePerrySmith.glb',
+  fitToView: true, targetLongestSideMetres: fullBody ? 1.67 : 0.32, initialYawRadians: 0
+});
+const mode = useWebGL ? 'WebGL 2' : 'Native WebGPU';
+for (const [id, value] of [['rendererSelect', useWebGL ? 'webgl' : 'webgpu'], ['materialSelect', unlit ? 'unlit' : 'lit'], ['modelSelect', diagnosticCube ? 'cube' : fullBody ? 'heidi' : 'head']]) {
+  const control = document.getElementById(id);
+  control.value = value;
+  control.addEventListener('change', () => {
+    query.set('renderer', document.getElementById('rendererSelect').value);
+    query.set('material', document.getElementById('materialSelect').value);
+    query.set('model', document.getElementById('modelSelect').value);
+    query.set('v','14.3');
+    location.search = query.toString();
+  });
+}
+document.getElementById('creditHead').hidden=fullBody||diagnosticCube;
+document.getElementById('creditHeidi').hidden=!fullBody;
+
+const $ = (id) => document.getElementById(id);
+const setStatus = (message) => { $('status').textContent = message; };
+const logKey='zelda-v14.3-webgpu-last-stage';
+let priorStage='none';
+try{priorStage=localStorage.getItem(logKey)||localStorage.getItem('zelda-v13-webgpu-last-stage')||'none';}catch{}
+let phase='initialising', lastFailure='', gpuLost=false, trace=[];
+const failureKey=logKey+'-failure';
+try{lastFailure=localStorage.getItem(failureKey)||'';}catch{}
+function showFailure(){ $('xrFailure').textContent=lastFailure?'Last XR failure: '+lastFailure:''; }
+showFailure();
+function mark(message){
+  phase=message;
+  $('diag').textContent='Current: '+message+' | Previous visit: '+priorStage;
+  trace.push(new Date().toISOString()+' '+message);
+  if(trace.length>100)trace.shift();
+  $('xrTrace').textContent=trace.join('\n');
+  try{localStorage.setItem(logKey,message);localStorage.setItem(logKey+'-trace',JSON.stringify(trace));}catch{}
+}
+function fail(message){lastFailure=message;showFailure();mark(message);try{localStorage.setItem(failureKey,message);}catch{}}
+function clearFailure(){lastFailure='';showFailure();try{localStorage.removeItem(failureKey);}catch{}}
+$('copyTrace').addEventListener('click',async()=>{
+  const report=['Zelda GPU V14.3',navigator.userAgent,'Renderer: '+mode,'Last failure: '+lastFailure,...trace].join('\n');
+  try{await navigator.clipboard.writeText(report);$('copyTrace').textContent='Copied';}catch{$('xrTrace').textContent=report;}
+});
+
+window.addEventListener('error',e=>fail('Error: '+(e.message||'unknown error')));
+window.addEventListener('unhandledrejection',e=>fail('Rejected: '+(e.reason?.message||String(e.reason))));
+mark('page loaded');
+const stage = $('scene');
+const scene = new THREE.Scene(); // Transparency is required for passthrough.
+const rendererOptions={antialias:true,alpha:true,powerPreference:'high-performance'};
+// r186 native GPU XR does not support MSAA; avoid allocating it even in the preview.
+const gpuOptions={antialias:false,alpha:true,depth:true,stencil:false,multiview:false,outputBufferType:safeGPU?THREE.UnsignedByteType:THREE.HalfFloatType,powerPreference:'high-performance'};
+const renderer = useWebGL ? new THREE.WebGLRenderer(rendererOptions) : new WebGPURenderer(gpuOptions);
+// CRITICAL: WebGPUBackend.init reads renderer.xr.enabled to request xrCompatible:true.
+// The GPU device cannot be made XR-compatible after initialisation.
+renderer.xr.enabled = true;
+renderer.xr.setReferenceSpaceType('local-floor');
+if(safeGPU) renderer.xr.setFramebufferScaleFactor(0.65);
+try {
+  if (!useWebGL) {
+    if (!navigator.gpu) throw Error('This browser does not expose WebGPU.');
+    mark('initialising native GPU device with xr.enabled='+renderer.xr.enabled+' (XR-compatible adapter requested)');
+    await renderer.init();
+    if (!renderer.backend?.isWebGPUBackend) throw Error('Native WebGPU unavailable; fallback rejected for a valid comparison.');
+    const device=renderer.backend.device;
+    device?.addEventListener('uncapturederror',e=>{fail('GPU validation error: '+e.error.message);console.error(e.error);});
+    device?.lost.then(info=>{gpuLost=true;fail('GPU device lost: '+info.reason+' '+info.message);setStatus('GPU device lost. Reopen with WebGL or try the diagnostic cube.');$('enterAR').disabled=true;renderer.setAnimationLoop(null);});
+  }
+  document.getElementById('backend').textContent = 'V14.3 · ' + mode + ' · desktop' + (safeGPU?' · safe mode':'');
+  mark('renderer initialised');
+} catch(error) {
+  fail('Renderer initialisation failed: '+error.name+': '+error.message);
+  setStatus('Renderer could not start: '+error.message+' Select WebGL 2 to use the comparison mode.');
+  document.getElementById('enterAR').textContent='RENDERER UNAVAILABLE';
+  document.getElementById('backend').textContent='Native WebGPU unavailable';
+  throw error;
+}
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.toneMappingExposure = 1;
+renderer.setClearColor(0x000000,0);
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1,safeGPU?0.8:1.5));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled = false;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.appendChild(renderer.domElement);
+
+const rig = new THREE.Group();scene.add(rig);
+const camera = new THREE.PerspectiveCamera(65,innerWidth/innerHeight,0.01,50000);
+camera.position.set(0,1.65,2.65);rig.add(camera);
+const controls = new OrbitControls(camera,renderer.domElement);
+controls.target.set(0,0.75,-1.85);
+controls.enableDamping = true;
+controls.minDistance=.65;controls.maxDistance=50000;
+controls.maxPolarAngle=Math.PI*.55;
+controls.update();
+
+// Identical lighting on both renderer paths. No virtual floor or shadows.
+if (!unlit) {
+  scene.add(new THREE.HemisphereLight(0xffffff,0x8a8078,1.15));
+  const key = new THREE.DirectionalLight(0xfff4e8,2.0);
+  key.position.set(-2,3,3); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xe8f2ff,0.65);
+  fill.position.set(2,1,2); scene.add(fill);
+}
+
+// Model-independent anchor: no Zelda, mesh or other 3D object is bundled.
+const modelAnchor=new THREE.Group();
+modelAnchor.position.set(0,1,-2);
+scene.add(modelAnchor);
+let avatar=null,physics=null,modelSize=null,modelReady=false,firstDesktop=false,firstXR=false;
+const physicsReady=createGrabPhysics({renderer,rig,modelAnchor,onStatus:setStatus})
+  .then(instance=>{
+    physics=instance;
+    if(modelSize)physics.attachModel(modelSize);
+  })
+  .catch(error=>{
+    console.error('Physics initialisation failed',error);
+    setStatus('Physics initialisation failed: '+error.message);
+  });
+const glbLoader=new GLTFLoader();
+const objLoader=new OBJLoader();
+const fbxLoader=new FBXLoader();
+// Only the safe WebGPU preview uses smaller texture copies. Original asset files stay untouched.
+const resizedTextures=new WeakSet();
+function reduceTextures(root){
+  if(!safeGPU)return;
+  const slots=['map','normalMap','specularMap','roughnessMap','metalnessMap','alphaMap','emissiveMap','aoMap','bumpMap'];
+  root.traverse(n=>{
+    if(!n.isMesh)return;
+    for(const mat of (Array.isArray(n.material)?n.material:[n.material])){
+      if(!mat)continue;
+      for(const slot of slots){
+        const t=mat[slot],im=t?.image;
+        if(!t||!im||resizedTextures.has(t)||t.isCompressedTexture||!im.width||!im.height)continue;
+        resizedTextures.add(t);
+        const scale=Math.min(1,1024/Math.max(im.width,im.height));
+        if(scale===1)continue;
+        const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(im.width*scale));canvas.height=Math.max(1,Math.round(im.height*scale));
+        const ctx=canvas.getContext('2d');
+        if(!ctx)continue;
+        try{ctx.drawImage(im,0,0,canvas.width,canvas.height);t.image=canvas;t.needsUpdate=true;}catch(e){console.warn('Texture reduction skipped',e);}
+      }
+    }
+  });
+}
+function installObject(root,label='Object') {
+  if(!root || !root.isObject3D)throw new Error('The imported file has no Three.js scene.');
+  // Compute from a detached root; do not inherit any previous anchor rotation.
+  root.updateMatrixWorld(true);
+  const raw=new THREE.Box3().setFromObject(root);
+  if(raw.isEmpty())throw new Error('The imported object has no renderable geometry.');
+  const rawSize=raw.getSize(new THREE.Vector3());
+  const longest=Math.max(rawSize.x,rawSize.y,rawSize.z);
+  if(!Number.isFinite(longest)||longest<1e-7)throw new Error('Invalid object bounds.');
+  if(OBJECT_CONFIG.fitToView) {
+    // Uniform scaling only; never stretch the object or change proportions.
+    const target=Number(OBJECT_CONFIG.targetLongestSideMetres)||1.67;
+    root.scale.multiplyScalar(target/longest);
+    root.updateMatrixWorld(true);
+  }
+  const bounds=new THREE.Box3().setFromObject(root);
+  const centre=bounds.getCenter(new THREE.Vector3());
+  const dimensions=bounds.getSize(new THREE.Vector3());
+  if(avatar)modelAnchor.remove(avatar);
+  avatar=root;
+  root.position.sub(centre);
+  if (unlit) prepareUnlitModel(root);
+  else {
+    const lights=[]; root.traverse(n=>{if(n.isLight)lights.push(n);});
+    lights.forEach(n=>n.removeFromParent());
+  }
+  reduceTextures(root);
+  modelAnchor.add(root);
+  modelAnchor.scale.setScalar(1);
+  modelAnchor.rotation.set(0,Number(OBJECT_CONFIG.initialYawRadians)||0,0);
+  modelAnchor.position.set(0,(!fullBody && label==='Lee Perry-Smith head scan')?1.5:Math.max(0.4,Math.min(1.6,dimensions.y/2)),-2);
+  modelSize=dimensions;
+  if(physics)physics.attachModel(modelSize);
+  modelReady=true;
+  mark('model installed: '+label);
+  setStatus(label+' loaded. Aim at the object, squeeze a side grip and move or twist it. Other controls match VR v13.');
+}
+function loadObject(url,filename) {
+  const extension=(filename.split(/[?#]/)[0].split('.').pop()||'').toLowerCase();
+  const revoke=url.startsWith('blob:');
+  const done=loaded=>{
+    try{installObject(loaded.scene||loaded,filename);}
+    catch(error){console.error(error);setStatus('Object import failed: '+error.message);}
+    finally{if(revoke)URL.revokeObjectURL(url);}
+  };
+  const failed=error=>{
+    console.error('Object import failed',error);
+    setStatus('Object import failed. Use a self-contained GLB for reliable textures and materials.');
+    if(revoke)URL.revokeObjectURL(url);
+  };
+  setStatus('Loading '+filename+'…');
+  if(extension==='glb'||extension==='gltf')glbLoader.load(url,done,undefined,failed);
+  else if(extension==='obj')objLoader.load(url,done,undefined,failed);
+  else if(extension==='fbx')fbxLoader.load(url,done,undefined,failed);
+  else failed(new Error('Unsupported extension '+extension+'. Convert to GLB.'));
+}
+const initialModel=OBJECT_CONFIG.modelUrl;
+if(diagnosticCube){
+  installObject(new THREE.Mesh(new THREE.BoxGeometry(.3,.3,.3),new THREE.MeshBasicMaterial({color:0x39d9b0})),'Diagnostic cube');
+}else if(typeof initialModel==='string'&&initialModel.trim()){
+  if(fullBody) loadObject(initialModel,'Heidi.glb');
+  else {
+    setStatus('Loading head scan and original colour, specular and normal maps…');
+    const t=new THREE.TextureLoader();
+    Promise.all([
+      glbLoader.loadAsync(initialModel),
+      t.loadAsync(source+'Map-COL.jpg'),
+      unlit?Promise.resolve(null):t.loadAsync(source+'Map-SPEC.jpg'),
+      unlit?Promise.resolve(null):t.loadAsync(source+'Infinite-Level_02_Tangent_SmoothUV.jpg')
+    ]).then(([gltf,map,specularMap,normalMap])=>{
+      map.colorSpace=THREE.SRGBColorSpace;
+      if(specularMap)specularMap.colorSpace=THREE.SRGBColorSpace;
+      // Original Three.js example uses these three maps with MeshPhongMaterial.
+      const material=unlit?new THREE.MeshBasicMaterial({color:0xefefef,map}):new THREE.MeshPhongMaterial({color:0xefefef,specular:0x222222,shininess:35,map,specularMap,normalMap,normalScale:new THREE.Vector2(1,1)});
+      gltf.scene.traverse(n=>{if(n.isMesh)n.material=material;});
+      installObject(gltf.scene,'Lee Perry-Smith head scan');
+    }).catch(e=>{console.error(e);setStatus('Head asset load failed. Select Heidi or import a local GLB. '+e.message);});
+  }
+}else{
+  setStatus('Empty VR Objects environment ready. Add a model URL in config.js or choose a local GLB, OBJ or FBX. No model is included.');
+}
+$('assetFile').addEventListener('change',event=>{
+  const file=event.target.files?.[0];
+  if(!file)return;
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(!['glb','obj','fbx'].includes(ext)){
+    setStatus('Please choose a .glb, .obj or .fbx file. GLB is recommended.');
+    return;
+  }
+  loadObject(URL.createObjectURL(file),file.name);
+});
+
+// No virtual floor, gravity, collision geometry, grid or stage.
+
+// Controllers and their side-grip events are registered in physics-grab.js.
+const keys = new Set();
+window.addEventListener('keydown', e => {keys.add(e.code); if(e.code.startsWith('Arrow'))e.preventDefault();});
+window.addEventListener('keyup', e => keys.delete(e.code));
+window.addEventListener('blur', () => keys.clear());
+const xrForward=new THREE.Vector3(),xrRight=new THREE.Vector3();
+const xrHeadOrientation=new THREE.Quaternion(),xrRigOrientation=new THREE.Quaternion();
+const xrLocalHead=new THREE.Vector3(),xrPivotBefore=new THREE.Vector3(),xrPivotAfter=new THREE.Vector3();
+const xrViewerWorld=new THREE.Vector3();
+const UP=new THREE.Vector3(0,1,0);
+let snapTurnReady=true;
+const HOME={x:0,z:0};
+function activeStick(gamepad) {
+  const axes=gamepad.axes||[];
+  const pair=(x,y)=>Number.isFinite(axes[x])&&Number.isFinite(axes[y])?{x:axes[x],y:axes[y]}:null;
+  const main=pair(2,3),fallback=pair(0,1);
+  if(main&&(Math.abs(main.x)>.12||Math.abs(main.y)>.12)) return main;
+  if(fallback&&(Math.abs(fallback.x)>.12||Math.abs(fallback.y)>.12))return fallback;
+  return main||fallback||{x:0,y:0};
+}
+function snapTurn(direction, viewerPose){
+  // Preserve physical head position when rotating the locomotion rig.
+  const pos=viewerPose.transform.position;
+  xrLocalHead.set(pos.x,pos.y,pos.z);
+  rig.updateMatrixWorld(true);
+  xrPivotBefore.copy(xrLocalHead);rig.localToWorld(xrPivotBefore);
+  rig.rotation.y-=direction*THREE.MathUtils.degToRad(30);
+  rig.updateMatrixWorld(true);
+  xrPivotAfter.copy(xrLocalHead);rig.localToWorld(xrPivotAfter);
+  rig.position.x+=xrPivotBefore.x-xrPivotAfter.x;
+  rig.position.z+=xrPivotBefore.z-xrPivotAfter.z;
+}
+function updateXR(dt, frame){
+  const session=renderer.xr.getSession();
+  const space=renderer.xr.getReferenceSpace();
+  const pose=frame&&space?frame.getViewerPose(space):null;
+  if(!session||!pose)return;
+  let left=null,right=null;
+  for(const source of session.inputSources){
+    if(!source.gamepad)continue;
+    const stick=activeStick(source.gamepad);
+    if(source.handedness==='left') left=stick;
+    if(source.handedness==='right') right=stick;
+  }
+  // A held controller's stick rotates object, not the player.
+  // When that grip is released, the usual locomotion/snap-turn controls resume.
+  if(right && !physics?.isHolding('right')){
+    if(Math.abs(right.x)<.30) snapTurnReady=true;
+    if(snapTurnReady&&Math.abs(right.x)>.70){snapTurn(right.x>0?1:-1,pose);snapTurnReady=false;}
+  } else if(right) {
+    snapTurnReady=true; // Re-arm the view control while object is being held.
+  }
+  // Version 10: both vertical sticks still pull/push the CHARACTER, never
+  // move the player. Left-stick X now translates the CHARACTER sideways too,
+  // even during a left grip. The right-stick X logic above stays unchanged:
+  // free = view snap-turn, right grip = object 30° yaw.
+  const side=left && Math.abs(left.x)>.16?left.x:0;
+  const leftDepth=left && Math.abs(left.y)>.16?left.y:0;
+  const rightDepth=right && Math.abs(right.y)>.16?right.y:0;
+  const modelDepth=Math.abs(rightDepth)>=Math.abs(leftDepth)?rightDepth:leftDepth;
+  if(!physics || (!modelDepth&&!side))return;
+  const eye=pose.transform.position;
+  xrViewerWorld.set(eye.x,eye.y,eye.z);
+  rig.updateMatrixWorld(true);
+  rig.localToWorld(xrViewerWorld);
+  if(modelDepth)physics.adjustModelDepth(modelDepth,dt,xrViewerWorld);
+  if(side) {
+    const o=pose.transform.orientation;
+    xrHeadOrientation.set(o.x,o.y,o.z,o.w);
+    rig.getWorldQuaternion(xrRigOrientation);
+    xrHeadOrientation.premultiply(xrRigOrientation);
+    xrRight.set(1,0,0).applyQuaternion(xrHeadOrientation);
+    xrRight.y=0;
+    if(xrRight.lengthSq()>1e-6) {
+      xrRight.normalize();
+      physics.adjustModelSide(side,dt,xrRight);
+    }
+  }
+}
+function updateDesktop(dt){
+  const forward=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0);
+  const strafe=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0);
+  const len=Math.hypot(forward,strafe);
+  if(!len)return;
+  const cameraForward=new THREE.Vector3();camera.getWorldDirection(cameraForward);cameraForward.y=0;cameraForward.normalize();
+  const cameraRight=new THREE.Vector3().crossVectors(cameraForward,UP).normalize();
+  const speed=(keys.has('ShiftLeft')?3:1.5)*dt/len;
+  rig.position.addScaledVector(cameraForward,forward*speed);
+  rig.position.addScaledVector(cameraRight,strafe*speed);
+  controls.target.addScaledVector(cameraForward,forward*speed);
+  controls.target.addScaledVector(cameraRight,strafe*speed);
+}
+function resetView(){
+  rig.position.set(HOME.x,0,HOME.z);rig.rotation.y=0;snapTurnReady=true;
+  if(!renderer.xr.isPresenting){camera.position.set(0,1.65,2.65);controls.target.set(0,.75,-1.85);controls.update();}
+  physics?.reset();
+  setStatus('Zelda GPU V14.3 reset. Left X moves object sideways, either Y pulls/pushes. Two-hand resizing is 10% to 350%.');
+}
+$('reset').addEventListener('click',resetView);
+
+const enter=$('enterAR');
+let arSupported=false, starting=false, closingAfterFailure=false;
+if(!window.isSecureContext){enter.textContent='HTTPS REQUIRED';setStatus('Open the secure GitHub Pages URL, not a local file.');}
+else if(!navigator.xr){enter.textContent='OPEN ON QUEST 3';setStatus('Desktop preview is available. Passthrough requires Meta Quest Browser with WebXR AR support.');}
+else{
+  navigator.xr.isSessionSupported('immersive-ar').then(supported=>{
+    arSupported=supported && (useWebGL || typeof globalThis.XRGPUBinding !== 'undefined');
+    enter.disabled=!arSupported;
+    enter.textContent=arSupported?'ENTER PASSTHROUGH ('+mode+')':'PASSTHROUGH UNAVAILABLE';
+    if(supported&&!arSupported)setStatus('Native XRGPUBinding is missing. Update Quest Browser or select WebGL 2.');
+    if(!supported)setStatus('This browser does not offer immersive-ar. Open the site in Meta Quest Browser and allow the required permissions.');
+  }).catch(error=>{enter.textContent='PASSTHROUGH CHECK FAILED';setStatus(error.message);});
+}
+enter.addEventListener('click',async()=>{
+  if(!arSupported||starting||gpuLost)return;
+  enter.disabled=true;
+  starting=true;
+  let session;
+  try{
+    if(renderer.xr.isPresenting){await renderer.xr.getSession().end();return;}
+    if(!modelReady){setStatus('Wait until the model is loaded before starting passthrough.');return;}
+    clearFailure();closingAfterFailure=false;
+    mark('requesting immersive AR session');
+    session=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:useWebGL?['local-floor']:['local-floor','webgpu']});
+    mark('session granted; features: '+Array.from(session.enabledFeatures||[]).join(', ')+'; blend mode: '+session.environmentBlendMode);
+    session.addEventListener('end',()=>{mark('browser XR session ended; first frame='+firstXR);if(!firstXR&&!lastFailure)fail('XR session ended before the first rendered frame');},{once:true});
+    if(!useWebGL && session.enabledFeatures && !Array.from(session.enabledFeatures).includes('webgpu'))throw Error('Browser did not grant required webgpu feature');
+    firstXR=false;
+    mark('creating XR projection layer and reference space');
+    await renderer.xr.setSession(session);
+    mark('XR session attached');
+    if(!useWebGL && !renderer.xr.getWebGPUBinding?.())throw Error('No native XR GPU binding; invalid comparison.');
+    document.getElementById('backend').textContent='V14.3 · '+mode+' · '+(useWebGL?'WebXR':'XRGPUBinding');
+    resetSample();
+    controls.enabled=false;
+    camera.position.set(0,0,0); // Never reuse the desktop orbit offset in XR.
+    enter.textContent='PASSTHROUGH ACTIVE';
+    physics?.releaseAll();
+    setStatus('VR Objects Zelda GPU V14.3: point and squeeze, then move either controller or its aim to move distant object in all directions.');
+  }catch(error){
+    closingAfterFailure=true;
+    const failure='AR start failed at ['+phase+']: '+error.name+': '+error.message;
+    fail(failure);console.error(error);
+    if(session){try{await session.end();}catch{}}
+    enter.textContent='RETRY PASSTHROUGH';
+    setStatus(failure);
+  }
+  finally{starting=false;enter.disabled=gpuLost;}
+});
+renderer.xr.addEventListener('sessionend',()=>{
+  document.getElementById('backend').textContent='V14.3 · '+mode+' · desktop';
+  document.getElementById('lastXR').textContent='Last XR sample: '+(xrSamples>1?((xrSamples-1)*1000/Math.max(1,xrLast-xrStart)).toFixed(1)+' callback fps ('+((xrLast-xrStart)/1000).toFixed(1)+' s)':'no samples');
+  resetSample();
+  controls.enabled=true;
+  camera.position.set(0,1.65,2.65);
+  controls.target.set(0,.75,-1.85); controls.update();
+  enter.textContent=lastFailure?'RETRY PASSTHROUGH':'ENTER PASSTHROUGH';
+  if(!lastFailure&&!closingAfterFailure)setStatus('Passthrough session ended. Desktop preview active.');
+  else setStatus(lastFailure);
+});
+window.addEventListener('resize',()=>{if(renderer.xr.isPresenting)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+let previous=0, count=0, windowStart=0, xrSamples=0,xrStart=0,xrLast=0;
+function resetSample(){previous=0;count=0;windowStart=0;xrSamples=0;xrStart=0;xrLast=0;}
+await renderer.setAnimationLoop((time,frame)=>{
+  if(!windowStart)windowStart=time;
+  count++;
+  if(renderer.xr.isPresenting && frame){
+    if(!xrSamples)xrStart=time;
+    xrLast=time;xrSamples++;
+  }
+  if(time-windowStart>=1000){
+    document.getElementById('fps').textContent=(count*1000/(time-windowStart)).toFixed(1)+' callback fps';
+    count=0;windowStart=time;
+  }
+  const dt=previous?Math.min(.05,(time-previous)/1000):0;
+  previous=time;
+  try{
+  if(renderer.xr.isPresenting) {
+    physics?.pollGrips(); // Resolve grip before routing thumbstick actions.
+    updateXR(dt,frame);
+  } else {updateDesktop(dt);controls.update();}
+  physics?.update(dt);
+    renderer.render(scene,camera);
+    if(renderer.xr.isPresenting&&frame&&!firstXR){firstXR=true;mark('first XR render submitted');}
+    else if(!renderer.xr.isPresenting&&modelReady&&!firstDesktop){firstDesktop=true;mark('first model preview render submitted');}
+  }catch(error){
+    fail('frame failed: '+error.name+': '+error.message);closingAfterFailure=true;
+    setStatus('Render failed: '+error.message);
+    console.error(error);
+    renderer.setAnimationLoop(null);
+    if(renderer.xr.isPresenting)renderer.xr.getSession()?.end().catch(console.error);
+  }
+});
+</script>
+</body>
+</html>

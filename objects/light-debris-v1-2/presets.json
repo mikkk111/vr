@@ -1,0 +1,68 @@
+{
+  "version": "1.2",
+  "baselineCommit": "a87c0fb1274820a88725110e1bd3e5b96ac41492",
+  "sharedPhysicsBlob": "9f206b64bbe1a483f429489e54aa85cdc2f489a7",
+  "threeVersion": "0.187.0",
+  "defaults": {
+    "mode": "ar",
+    "quality": "quest",
+    "palette": "warm",
+    "optics": "solid",
+    "imperfections": 100
+  },
+  "quality": {
+    "quest": {
+      "count": 8000,
+      "xr": 0.65,
+      "dpr": 0.8
+    },
+    "balanced": {
+      "count": 24000,
+      "xr": 0.75,
+      "dpr": 1
+    },
+    "high": {
+      "count": 60000,
+      "xr": 0.85,
+      "dpr": 1
+    },
+    "ultra": {
+      "count": 150000,
+      "xr": 1,
+      "dpr": 1.15
+    }
+  },
+  "palettes": {
+    "warm": [
+      "#ffaf64",
+      "#83baff"
+    ],
+    "red": [
+      "#ff5445",
+      "#ffe7cf"
+    ],
+    "white": [
+      "#fff4dc",
+      "#659fff"
+    ]
+  },
+  "environments": {
+    "ar": "immersive-ar",
+    "vr": "immersive-vr"
+  },
+  "optics": {
+    "fast": {
+      "interfaces": 0,
+      "channels": 1
+    },
+    "solid": {
+      "interfaces": 2,
+      "channels": 1
+    },
+    "prism": {
+      "interfaces": 4,
+      "channels": 3
+    }
+  },
+  "notes": "V1.0 density and V1.1 audio preserved; new glass geometry and optical shader only."
+}

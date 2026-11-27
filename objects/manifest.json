@@ -269,6 +269,22 @@
       "sourceUrl": "https://nkondo-ft.github.io/light-and-debris/",
       "version": "1.1",
       "previousVersion": "light-debris-v1-0",
+      "status": "user-tested",
+      "ownerVerification": {
+        "date": "2026-11-27",
+        "scope": "Owner reported V1.1 looks pretty good; exact audio, device and preset coverage not stated.",
+        "independent": false
+      }
+    },
+    {
+      "id": "light-debris-v1-2",
+      "title": "Light & Debris GPU V1.2 — Refractive Glass",
+      "url": "./objects/light-debris-v1-2/?v=1.2",
+      "modelPath": null,
+      "description": "Solid distorted glass with native WGSL convex ray/plane refraction, internal reflections and experimental wavelength dispersion; three optics levels independent of density, original physics and spatial audio. Quest testing pending.",
+      "sourceUrl": "https://nkondo-ft.github.io/light-and-debris/",
+      "version": "1.2",
+      "previousVersion": "light-debris-v1-1",
       "status": "experimental"
     }
   ]

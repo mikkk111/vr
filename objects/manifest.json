@@ -317,6 +317,22 @@
       "sourceUrl": "https://nkondo-ft.github.io/light-and-debris/",
       "version": "1.4",
       "previousVersion": "light-debris-v1-3",
+      "status": "user-tested",
+      "ownerVerification": {
+        "date": "2026-11-27",
+        "scope": "Owner reported V1.4 looks pretty cool; exact preset/device coverage not specified.",
+        "independent": false
+      }
+    },
+    {
+      "id": "light-debris-v1-5",
+      "title": "Light & Debris GPU V1.5 — Nebula & Milky Way",
+      "url": "./objects/light-debris-v1-5/?v=1.5",
+      "modelPath": null,
+      "description": "Deforming translucent red/blue mist lights, soft extended optical emission, photographic 6000×3000 all-sky ESO Milky Way with infinite-distance projection, spatial rain. External sky asset with explicit fallback. Quest testing pending.",
+      "sourceUrl": "https://nkondo-ft.github.io/light-and-debris/",
+      "version": "1.5",
+      "previousVersion": "light-debris-v1-4",
       "status": "experimental"
     }
   ]

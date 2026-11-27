@@ -123,6 +123,6 @@ await renderer.setAnimationLoop((time,frame)=>{try{const realDt=last?Math.max(0,
     while(acc>=h&&count<6){for(const s of held.values())model.grab(s.index,s.offset,anchor.worldToLocal(s.target.clone()),gravity,h,motion.heft);model.step(h);acc-=h;count++;}if(count)draw();physicsMs=performance.now()-t;
   }else{acc=0;physicsMs=0;}
   const secondaryStart=performance.now();secondary.update(model,anchor,realDt,motion,gravityOn,closeControllers(frame));const secondaryMs=performance.now()-secondaryStart;
-  if(time-begin>1000){$('stats').textContent=(frames*1000/(time-begin)).toFixed(1)+' callback FPS | '+physicsMs.toFixed(2)+' ms physics | '+secondaryMs.toFixed(2)+' ms local tissue | 15 bodies | '+([...held.values()].map(s=>fit.shapes[s.index].name).join(', ')||'no grab');begin=time;frames=0;}
+  if(time-begin>1000){$('stats').textContent=(frames*1000/(time-begin)).toFixed(1)+' callback FPS | '+physicsMs.toFixed(2)+' ms physics | '+secondaryMs.toFixed(2)+' ms local tissue | '+secondary.contacts+' close contacts | 60 kg | '+([...held.values()].map(s=>fit.shapes[s.index].name).join(', ')||'no grab');begin=time;frames=0;}
   renderer.render(scene,camera);
 }catch(e){paused=true;releaseAll();status('Paused: '+e.message);console.error(e);}});

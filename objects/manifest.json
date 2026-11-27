@@ -466,6 +466,18 @@
       "status": "experimental",
       "modelSha256": "dafef1c0d53d53099bb567c7d134f894bdc6b9e6d5a679c71557b9a64a4b85ee",
       "modelBytes": 6284328
+    },
+    {
+      "id": "human-ragdoll-v1-5",
+      "title": "Human Ragdoll V1.5 — Gravity and Contact",
+      "url": "./objects/human-ragdoll-v1-5/?v=1.5",
+      "modelPath": "./objects/human-softbody-v1-0/assets/character-softbody-v1.glb",
+      "description": "60 kg Jolt rigid ragdoll with force-limited handling, inertial whole-object movement, expanded regional compliance and gravity sag, independent controller contact and wider controls. Rest-space fit and numerical spring/contact tests passed; headset testing pending.",
+      "version": "1.5",
+      "previousVersion": "human-ragdoll-v1-4",
+      "status": "experimental",
+      "modelSha256": "dafef1c0d53d53099bb567c7d134f894bdc6b9e6d5a679c71557b9a64a4b85ee",
+      "modelBytes": 6284328
     }
   ]
 }

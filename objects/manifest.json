@@ -150,13 +150,21 @@
       "title": "Zelda GPU V14.3 — XR Compatibility Fix",
       "url": "./objects/zelda-gpu-v14-3/?v=14.3",
       "modelPath": "https://threejs.org/examples/models/gltf/LeePerrySmith/LeePerrySmith.glb",
-      "description": "Corrects native WebGPU XR adapter initialisation order and records exact session-start errors. WebGL comparison and shared Zelda v13 controls retained. Quest testing pending.",
+      "description": "Known-working native WebGPU baseline. Owner confirmed Quest 3 passthrough works on 27 November 2026 after the XR adapter initialisation fix. Shared Zelda v13 controls retained.",
       "author": "Lee Perry-Smith / Infinite-Realities",
       "license": "CC BY 3.0",
       "sourceUrl": "https://threejs.org/examples/webgl_materials_normalmap.html",
-      "status": "experimental",
+      "status": "user-tested",
       "version": "14.3",
-      "previousVersion": "zelda-gpu-v14-2"
+      "previousVersion": "zelda-gpu-v14-2",
+      "engineBaseline": true,
+      "hardwareVerification": {
+        "device": "Meta Quest 3",
+        "date": "2026-11-27",
+        "source": "project owner",
+        "scope": "native WebGPU passthrough starts and works",
+        "independent": false
+      }
     }
   ]
 }

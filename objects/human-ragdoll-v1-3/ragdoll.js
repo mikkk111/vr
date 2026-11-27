@@ -19,7 +19,7 @@ export function createRagdoll(J,fit){
   const jolt=new J.JoltInterface(settings);J.destroy(settings);J.destroy(l0);J.destroy(l1);
   const world=jolt.GetPhysicsSystem(),bi=world.GetBodyInterface(),ps=world.GetPhysicsSettings();
   ps.mNumVelocitySteps=12;ps.mNumPositionSteps=4;ps.mPenetrationSlop=.001;ps.mSpeculativeContactDistance=.012;ps.mLinearCastThreshold=.25;ps.mLinearCastMaxPenetration=.10;
-  world.SetPhysicsSettings(ps);J.destroy(ps);
+  world.SetPhysicsSettings(ps); // Borrowed const reference; never destroy.
   const v=vec=>new J.Vec3(vec.x,vec.y,vec.z),rv=vec=>new J.RVec3(vec.x,vec.y,vec.z),jq=q=>new J.Quat(q.x,q.y,q.z,q.w);
   const posTmp=new J.RVec3(0,0,0),rotTmp=new J.Quat(0,0,0,1),forceTmp=new J.Vec3(0,0,0),pointTmp=new J.RVec3(0,0,0),zero=new J.Vec3(0,0,0);
   const rest=fit.rest.map(a=>V(...a)),N=fit.shapes.length,filter=new J.GroupFilterTable(N);filter.AddRef();

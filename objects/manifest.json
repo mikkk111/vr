@@ -165,6 +165,19 @@
         "scope": "native WebGPU passthrough starts and works",
         "independent": false
       }
+    },
+    {
+      "id": "noodles-gpu-v1-0",
+      "title": "Noodles GPU V1.0 — Interactive VR",
+      "url": "./objects/noodles-gpu-v1-0/?v=1.0",
+      "modelPath": null,
+      "description": "Original Marco Fugaro GPU noodle solver, adapted for Quest 3 native WebGPU passthrough. Pull individual strands with the trigger, move and resize the bundle with Zelda v13 grips. Eight strands by default, optional gravity; Quest testing pending.",
+      "author": "Marco Fugaro",
+      "license": "MIT",
+      "sourceUrl": "https://three-advanced-techniques.com/examples/noodles/",
+      "sourceCommit": "97c1e27f0c34927128a40b2dfe75315e0ac6e7a7",
+      "version": "1.0",
+      "status": "experimental"
     }
   ]
 }

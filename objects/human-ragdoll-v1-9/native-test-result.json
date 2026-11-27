@@ -1,5 +1,5 @@
 {
-  "status": "failed",
+  "status": "passed",
   "tests": [
     {
       "name": "actual mesh fit",
@@ -11,8 +11,30 @@
       "parts": 5,
       "top": 0.7970033400452049,
       "triangles": 600
+    },
+    {
+      "name": "table falls while character held",
+      "tableBottom": -1.4372130361092061e-7,
+      "characterDrift": 0
+    },
+    {
+      "name": "character release gravity",
+      "movement": 1.157794155695146
+    },
+    {
+      "name": "table resize and release",
+      "scale": 0.75,
+      "bottom": -2.4944490941957227e-7
+    },
+    {
+      "name": "character dropped onto table",
+      "top": 0.7970033400452049,
+      "minPelvis": 1.148447617212525,
+      "maxPelvis": 1.493254735389939,
+      "supportedFrames": 184,
+      "tableBottom": -0.0010507438424746107
     }
   ],
   "source": "native Jolt WASM 1.1.2 and original compact table geometry",
-  "error": "RuntimeError: memory access out of bounds\n    at wasm://wasm/007bc4e2:wasm-function[14]:0xa591\n    at wasm://wasm/007bc4e2:wasm-function[27]:0xad62\n    at Jolt.n.__destroy__ (file:///home/runner/work/_temp/vr-native/node_modules/jolt-physics/dist/jolt-physics.wasm-compat.js:934:147)\n    at Jolt.Module.destroy (file:///home/runner/work/_temp/vr-native/node_modules/jolt-physics/dist/jolt-physics.wasm-compat.js:753:154)\n    at Object.captureTable (file:///home/runner/work/_temp/vr-native/ragdoll.js:205:90)\n    at step (file:///home/runner/work/_temp/vr-native/test-native.mjs:30:64)\n    at file:///home/runner/work/_temp/vr-native/test-native.mjs:33:149"
+  "error": null
 }

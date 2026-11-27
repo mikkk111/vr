@@ -510,6 +510,16 @@
       "version": "1.8",
       "previousVersion": "human-ragdoll-v1-7",
       "status": "experimental"
+    },
+    {
+      "id": "human-ragdoll-v1-9",
+      "title": "Human Ragdoll V1.9.1 — Gravity and Nearby Placement",
+      "url": "./objects/human-ragdoll-v1-9/?v=1.9.1",
+      "modelPath": "./objects/human-softbody-v1-0/assets/character-softbody-v1.glb",
+      "description": "Headset-relative starting positions, restored gravity, independent dynamic table, native WASM memory error corrected. Actual asset and native floor/tabletop/release/resizing tests passed. Quest runtime not independently tested.",
+      "version": "1.9.1",
+      "previousVersion": "human-ragdoll-v1-8",
+      "status": "experimental"
     }
   ]
 }

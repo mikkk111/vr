@@ -3,7 +3,7 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {ConvexGeometry} from 'three/addons/geometries/ConvexGeometry.js';
 import initJolt from 'https://cdn.jsdelivr.net/npm/jolt-physics@1.1.2/dist/jolt-physics.wasm-compat.js';
-import {createRagdoll} from './ragdoll.js?v=1.9';
+import {createRagdoll} from './ragdoll.js?v=1.9.1';
 import {loadTable} from './table.js?v=1.9';
 import {createSecondary,defaults} from '../human-ragdoll-v1-5/secondary.js?v=1.5';
 import {createGrabPhysics} from '../../shared/zelda-v13/physics-grab-furniture.js?v=1.8';
@@ -143,7 +143,7 @@ function placeNearViewer(pose){
   releaseAll();grip.releaseAll();tableGrip?.releaseAll();selectedObject=null;wasWholeHold=false;wasTableHeld=false;tableSupportActive=false;
   model.setCharacterHeld(false);model.reset();grip.setScale(1);grip.setIdlePose(c,yaw);syncWholePose(0,true);secondary.reset();
   if(furniture&&model.table){model.setTableHeld(false);model.setTablePose(anchor,tp,tq,1,true);furniture.root.position.copy(tp);furniture.root.quaternion.copy(tq);furniture.root.scale.setScalar(1);tableGrip.setScale(1);tableGrip.setIdlePose(tp,tq);$('tableScale').value=1;$('tableScaleValue').textContent='100%';}
-  lastFloor.set(Infinity,0,0);updateFloor();draw();acc=0;gravityOn=true;$('gravity').checked=true;paused=false;firstDrop=false;$('run').textContent='Pause';
+  gravityOn=true;$('gravity').checked=true;lastFloor.set(Infinity,0,0);updateFloor();draw();acc=0;paused=false;firstDrop=false;$('run').textContent='Pause';
   // Small initial off-balance impulse, preserving ordinary falling physics.
   const push=new J.Vec3(.08,0,.65);model.bi.AddImpulse(model.bodies[1].GetID(),push);J.destroy(push);model.wake();
   status('Nearby room placement complete — gravity running');
@@ -234,7 +234,7 @@ updateFloor();draw();await tablePromise;if(!model.table){status('Table collision
 let last=0,begin=0,frames=0,physicsMs=0;
 await renderer.setAnimationLoop((time,frame)=>{try{const realDt=last?Math.max(0,(time-last)/1000):0,dt=Math.min(.05,realDt);last=time;if(!begin)begin=time;frames++;
   if(physicsFault){renderer.render(scene,camera);return;}
-  if(renderer.xr.isPresenting&&spawnPending&&frame){const ref=renderer.xr.getReferenceSpace(),pose=ref&&frame.getViewerPose(ref);if(pose){spawnPose=pose;spawnPending=false;placeNearViewer(pose);}}
+  if(renderer.xr.isPresenting&&spawnPending&&frame){const ref=renderer.xr.getReferenceSpace(),pose=ref&&frame.getViewerPose(ref);if(pose){const {position,orientation}=pose.transform;spawnPose={transform:{position:{x:position.x,y:position.y,z:position.z},orientation:{x:orientation.x,y:orientation.y,z:orientation.z,w:orientation.w}}};spawnPending=false;placeNearViewer(spawnPose);}}
   if(renderer.xr.isPresenting){const sources=renderer.xr.getSession()?.inputSources||[];if(!Array.from(sources).some(s=>s.gamepad?.buttons[1]?.pressed||s.gamepad?.buttons[1]?.value>.65)&&!anyGrip(grip)&&!anyGrip(tableGrip))selectedObject=null;grip.pollGrips();tableGrip?.pollGrips();xrUpdate(dt,frame);}else{orbit.update();if(held.has('mouse'))move('mouse',held.get('mouse').ray,dt);}
   grip.update(dt);tableGrip?.update(dt);const tableHeld=anyGrip(tableGrip);const whole=grip.isHolding('left')||grip.isHolding('right');
   if(wasWholeHold&&!whole){grip.setIdlePose(anchor.position,anchor.quaternion);anchorVelocity.set(0,0,0);lastFloor.set(Infinity,0,0);paused=false;firstDrop=false;$('run').textContent='Pause';model.wake();tableSupportActive=false;}
@@ -248,9 +248,9 @@ await renderer.setAnimationLoop((time,frame)=>{try{const realDt=last?Math.max(0,
   acc=Math.min(acc+dt,h*6);let count=0;
   while(acc>=h&&count<6){
     if(!paused&&!whole)for(const s of held.values())model.grab(s.index,s.offset,anchor.worldToLocal(s.target.clone()),gravity,h,motion.heft,held.size);
-    model.step(h);model.captureTable(anchor);model.ensureTableFloor(anchor);acc-=h;count++;simSteps++;
+    model.step(h);acc-=h;count++;simSteps++;
   }
-  if(count)draw();physicsMs=performance.now()-t;
+  if(count){model.captureTable(anchor);model.ensureTableFloor(anchor);draw();}physicsMs=performance.now()-t;
   if(furniture&&model.table){furniture.root.position.copy(model.table.position);furniture.root.quaternion.copy(model.table.rotation);furniture.root.scale.setScalar(model.table.sizeScale);if(!tableHeld&&tableGrip&&(tableHandle.position.distanceToSquared(model.table.position)>1e-10||1-Math.abs(tableHandle.quaternion.dot(model.table.rotation))>1e-10))tableGrip.setIdlePose(model.table.position,model.table.rotation);}
   const secondaryStart=performance.now();secondary.update(model,anchor,realDt,motion,gravityOn,closeControllers(frame));const secondaryMs=performance.now()-secondaryStart;
   if(time-begin>1000){$('stats').textContent=(frames*1000/(time-begin)).toFixed(1)+' callback FPS | '+physicsMs.toFixed(2)+' ms physics | '+secondaryMs.toFixed(2)+' ms local tissue | '+secondary.contacts+' close contacts | steps '+simSteps+' | '+(paused?'character paused':whole?'character held':'gravity running')+' | '+(model.table?.held?'table held':'table dynamic')+' | '+([...held.values()].map(s=>fit.shapes[s.index].name).join(', ')||'no grab');begin=time;frames=0;}

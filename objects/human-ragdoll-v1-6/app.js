@@ -148,7 +148,10 @@ updateFloor();draw();await renderer.compileAsync(scene,camera);status('Ready: 60
 let last=0,begin=0,frames=0,physicsMs=0;
 await renderer.setAnimationLoop((time,frame)=>{try{const realDt=last?Math.max(0,(time-last)/1000):0,dt=Math.min(.05,realDt);last=time;if(!begin)begin=time;frames++;
   if(renderer.xr.isPresenting){grip.pollGrips();xrUpdate(dt,frame);}else{orbit.update();if(held.has('mouse'))move('mouse',held.get('mouse').ray,dt);}
-  grip.update(dt);syncWholePose(dt);const whole=grip.isHolding('left')||grip.isHolding('right');if(whole){if(!wasWholeHold)releaseAll();keepWholeAboveFloor();}else{if(wasWholeHold){lastFloor.set(Infinity,0,0);model.wake();}if(renderer.xr.isPresenting)pollTriggers(dt,frame);}wasWholeHold=whole;
+  grip.update(dt);const whole=grip.isHolding('left')||grip.isHolding('right');
+  if(wasWholeHold&&!whole){grip.setIdlePose(anchor.position,anchor.quaternion);anchorVelocity.set(0,0,0);lastFloor.set(Infinity,0,0);model.wake();}
+  else syncWholePose(dt);
+  if(whole){if(!wasWholeHold)releaseAll();keepWholeAboveFloor();}else if(renderer.xr.isPresenting)pollTriggers(dt,frame);wasWholeHold=whole;
   if(!paused&&!whole){const t=performance.now();updateFloor();acc=Math.min(acc+dt,h*6);let count=0;
     while(acc>=h&&count<6){for(const s of held.values())model.grab(s.index,s.offset,anchor.worldToLocal(s.target.clone()),gravity,h,motion.heft,held.size);model.step(h);acc-=h;count++;}if(count)draw();physicsMs=performance.now()-t;
   }else{acc=0;physicsMs=0;}

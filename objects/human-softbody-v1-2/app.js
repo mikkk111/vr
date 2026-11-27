@@ -20,7 +20,7 @@ const fill=new THREE.DirectionalLight(0xdce7ff,.7);fill.position.set(2,1,1);scen
 await RAPIER.init();const grip=await createGrabPhysics({renderer,rig,modelAnchor:anchor,onStatus:status});
 const loader=new GLTFLoader(),controllers=[0,1].map(i=>renderer.xr.getController(i));
 let sim=null,paused=true,gravity=true,mode='grab',acc=0,ar=false,loadVersion=0;
-const held=new Map(),reactors=new Map(),triggerStates=new Map();
+const held=new Map(),reactors=new Map(),triggerStates=new Map(),nextPick=new Map();
 const RIGID_H=1/60;let tissueEnabled=new URLSearchParams(location.search).get('tissue')!=='off',tissueElapsed=0,tissueInterval=1/20,rigidMS=0,tissueMS=0,submitMS=0;
 $('tissue').checked=tissueEnabled;
 const floorWorld=new THREE.Plane(UP,0),floorLocal=new THREE.Plane(),inverse=new THREE.Matrix4(),gLocal=V(),anchorQ=Q(),scale=V();
@@ -213,7 +213,7 @@ function setTissue(on){
   if(sim.gpu){sim.visible.material=on?sim.gpu.mat:sim.gpu.original;sim.gpu.strength.value=on?1:0;}
   resetWorker(sim);
 }
-function releaseAll(){for(const key of [...held.keys()])release(key);triggerStates.clear();reactors.clear();}
+function releaseAll(){for(const key of [...held.keys()])release(key);triggerStates.clear();nextPick.clear();reactors.clear();}
 async function install(buffer){
   const v=++loadVersion,decoded=decode(buffer),gl=await loader.parseAsync(buffer,'');if(v!==loadVersion)return;
   gl.scene.updateMatrixWorld(true);let mesh;gl.scene.traverse(o=>{if(o.isSkinnedMesh)mesh=o;});if(!mesh)throw Error('Missing skinned character');
@@ -228,8 +228,8 @@ async function install(buffer){
   const m={...makeWorld(bones,parents),arrays:a,bones,parents,dominant,visible,root:gl.scene,boneObjects:skeleton.bones,tissue:{stats:{samples:0,contacts:0}},info:decoded.info,rest,gpu:null,worker:null,workerReady:false,workerBusy:false,epoch:0};
   releaseAll();if(sim){anchor.remove(sim.root);sim.worker?.terminate();sim.visible.geometry.dispose();sim.gpu?.mat.dispose();sim.world.free();}sim=m;anchor.add(m.root);
   anchor.position.set(0,1.22,-2);anchor.rotation.set(0,0,0);anchor.scale.setScalar(1);grip.attachModel(V(.8,2,.37));
-  updateFloor(m);draw(m);setTissue(tissueEnabled);paused=true;acc=0;tissueElapsed=0;$('run').textContent='Start / drop';$('run').disabled=false;$('reset').disabled=false;
-  status('Ready — GPU skinned 22-bone character; asynchronous tissue worker. Trigger to select a limb.');
+  updateFloor(m);draw(m);setTissue(tissueEnabled);if(tissueEnabled){try{await renderer.compileAsync(scene,camera);}catch(e){setTissue(false);console.warn('Tissue GPU compile failed',e);}}paused=true;acc=0;tissueElapsed=0;$('run').textContent='Start / drop';$('run').disabled=false;$('reset').disabled=false;
+  status('Ready — GPU skinned 22-bone character; tissue '+(tissueEnabled?'worker enabled':'OFF (rigid diagnostic)')+'. Trigger to select a limb.');
 }
 
 function ray(c){c.updateWorldMatrix(true,false);return new THREE.Ray(c.getWorldPosition(V()),V(0,0,-1).applyQuaternion(c.getWorldQuaternion(Q())));}
@@ -253,9 +253,9 @@ function pick(r){
   }
   return best;
 }
-function start(owner,r){
+function start(owner,r,quiet=false){
   if(!sim||held.has(owner))return false;
-  const hit=pick(r);if(!hit){status('Trigger pressed — no limb hit. Aim at the hand, forearm or leg.');return false;}
+  const hit=pick(r);if(!hit){if(!quiet)status('Trigger pressed — no limb hit. Aim at the hand, forearm or leg.');return false;}
   const bone=hit.bone,body=sim.bodies[bone],p=pOf(body),q=qOf(body),localOffset=hit.point.clone().sub(p).applyQuaternion(q.clone().invert());
   // At a joint pivot, select a point just distal to it to provide leverage.
   if(mode==='grab'&&localOffset.length()<.045){const proxy=sim.proxy[bone],dir=proxy.b.clone().sub(sim.bones[bone]);if(dir.length()>.01)localOffset.copy(dir.setLength(Math.min(.075,dir.length())));}
@@ -278,9 +278,9 @@ function pollTriggers(dt,frame){
   const active=new Set();
   for(const source of session.inputSources){if(!source.gamepad||source.handedness==='none')continue;const key=source.handedness,pressed=!!source.gamepad.buttons[0]?.pressed;active.add(key);
     let previous=triggerStates.get(key)||false;triggerStates.set(key,pressed);
-    if(!pressed){release(key);continue;}
+    if(!pressed){release(key);nextPick.delete(key);continue;}
     const r=sourceRay(source,frame);if(!r)continue;
-    if(!held.has(key)&&!previous)start(key,r);else if(held.has(key))move(key,r,dt);
+    if(!held.has(key)&&(!previous||performance.now()>=(nextPick.get(key)||0))){nextPick.set(key,performance.now()+180);start(key,r,previous);}else if(held.has(key))move(key,r,dt);
   }
   for(const key of triggerStates.keys())if(!active.has(key)){release(key);triggerStates.delete(key);}
 }

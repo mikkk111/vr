@@ -68,15 +68,22 @@ function makeWorld(bones,parents){
   return {world,bodies,jointData,floorBody};
 }
 function enforceLimits(m){
-  // Hinge limits are native impulse-joint constraints. Spherical joints receive
-  // an explicit parent-frame angular projection, plus velocity correction.
-  for(const j of m.jointData){if(j.hinge)continue;const a=m.bodies[j.par],b=m.bodies[j.i],qa=qOf(a),qb=qOf(b),relative=qa.clone().invert().multiply(qb).normalize(),e=new THREE.Euler().setFromQuaternion(relative,'YXZ');
-    const before=[e.x,e.y,e.z],clamped=before.map((x,k)=>THREE.MathUtils.clamp(x,R(j.lim[k][0]),R(j.lim[k][1])));
-    if(before.every((x,k)=>Math.abs(x-clamped[k])<.0001))continue;
-    const desired=qa.clone().multiply(Q().setFromEuler(new THREE.Euler(...clamped,'YXZ'))).normalize();
-    b.setRotation(desired,true);const av=a.angvel(),bv=b.angvel(),local=V(bv.x-av.x,bv.y-av.y,bv.z-av.z).applyQuaternion(qa.clone().invert());
-    for(const k of ['x','y','z']){const idx=['x','y','z'].indexOf(k);if((before[idx]-clamped[idx])*local[k]>0)local[k]=0;}
-    local.applyQuaternion(qa).add(V(av.x,av.y,av.z));b.setAngvel(local,true);
+  // Native impulse-joint hinge limits; parent-frame quaternion rotation-vector
+  // projection for ball joints. No Euler gimbal singularity or 180-degree flip.
+  for(const j of m.jointData){if(j.hinge)continue;
+    const a=m.bodies[j.par],b=m.bodies[j.i],qa=qOf(a),qb=qOf(b),rel=qa.clone().invert().multiply(qb).normalize();
+    if(rel.w<0)rel.set(-rel.x,-rel.y,-rel.z,-rel.w);
+    const axis=V(rel.x,rel.y,rel.z),sin=axis.length();if(sin<1e-7)continue;
+    const angle=2*Math.atan2(sin,Math.max(0,rel.w)),rv=axis.multiplyScalar(angle/sin),before=rv.clone();
+    for(const [k,i] of [['x',0],['y',1],['z',2]])rv[k]=THREE.MathUtils.clamp(rv[k],R(j.lim[i][0]),R(j.lim[i][1]));
+    const cap=restNames[j.i].includes('UpperArm')?145:restNames[j.i].includes('UpperLeg')?125:95;
+    rv.clampLength(0,R(cap));
+    if(rv.distanceToSquared(before)<1e-8)continue;
+    const len=rv.length(),desired=qa.clone().multiply(len<1e-7?Q():Q().setFromAxisAngle(rv.clone().divideScalar(len),len)).normalize();
+    b.setRotation(desired,true);
+    const av=a.angvel(),bv=b.angvel(),local=V(bv.x-av.x,bv.y-av.y,bv.z-av.z).applyQuaternion(qa.clone().invert());
+    for(const k of ['x','y','z'])if((before[k]-rv[k])*local[k]>0)local[k]=0;
+    b.setAngvel(local.applyQuaternion(qa).add(V(av.x,av.y,av.z)),true);
   }
 }
 function updateTargets(m){
@@ -167,7 +174,7 @@ window.addEventListener('resize',()=>{if(!renderer.xr.isPresenting){camera.aspec
 window.addEventListener('error',e=>status('Error: '+e.message));window.addEventListener('unhandledrejection',e=>status('Error: '+e.reason?.message));
 renderer.backend.device?.lost.then(info=>status('GPU lost: '+info.message));
 if(navigator.xr&&typeof globalThis.XRGPUBinding!=='undefined')ar=await navigator.xr.isSessionSupported('immersive-ar');$('enter').disabled=!ar;$('enter').textContent=ar?'ENTER PASSTHROUGH':'Native XR unavailable — desktop preview';
-try{const r=await fetch('./assets/character-softbody-v1.glb');if(!r.ok)throw Error('not hosted');await install(await r.arrayBuffer());}catch(e){status('Model binary is not hosted. Choose the prepared character-softbody-v1.glb from your device.');}
+try{const r=await fetch('./assets/character-softbody-v1.glb');if(!r.ok)throw Error('not hosted');await install(await r.arrayBuffer());}catch(e){status('Automatic model load unavailable: '+e.message+'. Choose the prepared character-softbody-v1.glb from your device.');}
 let last=0,startTime=0,frames=0;
 await renderer.setAnimationLoop((time,frame)=>{try{let dt=last?Math.min(.035,(time-last)/1000):0;last=time;if(!startTime)startTime=time;frames++;
   if(renderer.xr.isPresenting){grip.pollGrips();xrUpdate(dt,frame);for(let i=0;i<2;i++)if(held.has(i))move(i,ray(controllers[i]),dt);}else{orbit.update();if(held.has('mouse'))move('mouse',held.get('mouse').ray,dt);}

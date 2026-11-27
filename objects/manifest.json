@@ -206,6 +206,19 @@
       "version": "1.2",
       "status": "experimental",
       "previousVersion": "noodles-gpu-v1-1"
+    },
+    {
+      "id": "discobolus-gpu-v1-0",
+      "title": "Discobolus GPU V1.0 — Gold in VR",
+      "url": "./objects/discobolus-gpu-v1-0/?v=1.0",
+      "modelPath": "https://raw.githubusercontent.com/marcofugaro/three-advanced-techniques/97c1e27f0c34927128a40b2dfe75315e0ac6e7a7/examples/models/discobulus.glb",
+      "description": "Opaque muted-blue immersive studio with original Discobolus sculpture, real GPU Gray–Scott gold relief, controller painting and erasing, and two mesh detail modes. Stereo-friendly adapted lighting; Quest testing pending.",
+      "author": "Marco Fugaro (original demo and simulation)",
+      "license": "MIT (code)",
+      "sourceUrl": "https://three-advanced-techniques.com/examples/discobulus-reaction-diffusion/",
+      "sourceCommit": "97c1e27f0c34927128a40b2dfe75315e0ac6e7a7",
+      "version": "1.0",
+      "status": "experimental"
     }
   ]
 }

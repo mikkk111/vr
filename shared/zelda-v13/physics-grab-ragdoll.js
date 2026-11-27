@@ -409,6 +409,16 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus, c
     }
     lastSampleValid=false;
   }
+  // Commit the actual inertial follower pose at release. Otherwise the
+  // fixed grip target may continue dragging the ragdoll into the floor.
+  function setIdlePose(p,q) {
+    if(!body||activeHands().length)return false;
+    modelAnchor.position.copy(p);modelAnchor.quaternion.copy(q);
+    body.setTranslation({x:p.x,y:p.y,z:p.z},true);
+    body.setRotation({x:q.x,y:q.y,z:q.z,w:q.w},true);
+    body.setLinvel({x:0,y:0,z:0},true);body.setAngvel({x:0,y:0,z:0},true);
+    return true;
+  }
   function reset() {
     releaseAll();
     depthOffset.set(0,0,0);
@@ -553,5 +563,5 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus, c
   }
 
   renderer.xr.addEventListener('sessionend',releaseAll);
-  return {attachModel,update,reset,releaseAll,pollGrips,isHolding,adjustModelDepth,adjustModelSide};
+  return {attachModel,update,reset,releaseAll,pollGrips,isHolding,adjustModelDepth,adjustModelSide,setIdlePose};
 }

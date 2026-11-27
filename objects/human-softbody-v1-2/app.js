@@ -3,7 +3,6 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import RAPIER from 'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.21.0/dist/rapier.mjs';
 import {createGrabPhysics} from '../../shared/zelda-v13/physics-grab.js?v=template-1';
-import {createTissue} from './tissue.js?v=1.2-lite';
 import {attribute,storage,positionLocal,vec3,uint,uniform} from 'three/tsl';
 const $=id=>document.getElementById(id),status=s=>{$('status').textContent=s;console.log(s)};
 const V=(x=0,y=0,z=0)=>new THREE.Vector3(x,y,z),Q=()=>new THREE.Quaternion(),R=THREE.MathUtils.degToRad,UP=V(0,1,0);
@@ -141,10 +140,6 @@ function capRigidVelocities(m){
     if(lv.length()>5)b.setLinvel(lv.clampLength(0,5),false);if(av.length()>8)b.setAngvel(av.clampLength(0,8),false);
   }
 }
-function updateTargets(m){
-  const matrices=m.bodies.map((b,i)=>({q:qOf(b),p:pOf(b),rest:m.bones[i]})),a=m.arrays,t=m.tissue.target,tmp=V(),out=V();
-  for(let i=0;i<a.points.length/3;i++){const k=i*3;out.set(0,0,0);for(let j=0;j<4;j++){const w=a.weights[i*4+j];if(w===0)continue;const z=matrices[a.joints[i*4+j]];tmp.set(a.points[k],a.points[k+1],a.points[k+2]).sub(z.rest).applyQuaternion(z.q).add(z.p);out.addScaledVector(tmp,w);}t[k]=out.x;t[k+1]=out.y;t[k+2]=out.z;}
-}
 function updateFloor(m){
   anchor.updateWorldMatrix(true,false);inverse.copy(anchor.matrixWorld).invert();floorLocal.copy(floorWorld).applyMatrix4(inverse);anchor.getWorldQuaternion(anchorQ).invert();anchor.getWorldScale(scale);
   const normal=floorLocal.normal,center=normal.clone().multiplyScalar(-floorLocal.constant-.05);
@@ -178,18 +173,46 @@ function syncSkeleton(m){
   }
   m.visible.updateMatrixWorld(true);
 }
-function uploadTissue(m){
-  if(!m.gpu)return;const out=m.gpu.buffer.array,p=m.tissue.p,t=m.tissue.target;
-  for(let i=0;i<p.length/3;i++){const k=i*3,j=i*4;out[j]=p[k]-t[k];out[j+1]=p[k+1]-t[k+1];out[j+2]=p[k+2]-t[k+2];out[j+3]=0;}
-  m.gpu.buffer.needsUpdate=true;
+function boneTransforms(m){
+  const data=new Float32Array(m.bodies.length*7);
+  for(let i=0;i<m.bodies.length;i++){const p=m.bodies[i].translation(),q=m.bodies[i].rotation(),j=i*7;data[j]=p.x;data[j+1]=p.y;data[j+2]=p.z;data[j+3]=q.x;data[j+4]=q.y;data[j+5]=q.z;data[j+6]=q.w;}
+  return data;
 }
-function draw(m){syncSkeleton(m);uploadTissue(m);}
-function setTissue(on){tissueEnabled=on;$('tissue').checked=on;if(!sim)return;
+function clearGPU(m){if(!m.gpu)return;m.gpu.buffer.array.fill(0);m.gpu.buffer.needsUpdate=true;}
+function draw(m){syncSkeleton(m);clearGPU(m);}
+function resetWorker(m){
+  m.epoch++;clearGPU(m);tissueElapsed=0;
+  if(!m.worker)return;
+  const transforms=boneTransforms(m);m.worker.postMessage({type:'reset',epoch:m.epoch,transforms},[transforms.buffer]);
+}
+function initWorker(m){
+  if(m.worker)return true;
+  try{
+    const worker=new Worker(new URL('./tissue-worker.js?v=1.2-worker',import.meta.url),{type:'module'});
+    m.worker=worker;m.workerReady=false;m.workerBusy=false;
+    worker.onmessage=e=>{
+      const d=e.data;if(sim!==m||m.worker!==worker)return;
+      if(d.type==='ready'){m.workerReady=true;m.tissue.stats.samples=d.samples;return;}
+      if(d.type==='error'){status('Tissue worker: '+d.message);setTissue(false);return;}
+      if(d.type!=='result')return;
+      m.workerBusy=false;tissueMS=d.ms;
+      tissueInterval=Math.max(1/20,Math.min(1/5,tissueMS/1000*5));
+      if(d.epoch!==m.epoch||!tissueEnabled)return;
+      m.tissue.stats=d.stats;m.gpu.buffer.array.set(d.offsets);m.gpu.buffer.needsUpdate=true;
+    };
+    worker.onerror=e=>{if(sim!==m)return;status('Tissue worker unavailable: '+e.message);setTissue(false);};
+    worker.postMessage({type:'init',arrays:m.arrays,restSkin:m.rest,bones:m.bones.map(b=>b.toArray())});
+    return true;
+  }catch(e){status('Tissue worker could not start: '+e.message);return false;}
+}
+function setTissue(on){
+  tissueEnabled=on;$('tissue').checked=on;if(!sim)return;
   if(on&&!sim.gpu){try{sim.gpu=makeGPUDeformer(sim.visible,sim.arrays);}catch(e){tissueEnabled=false;$('tissue').checked=false;status('GPU tissue setup failed: '+e.message);return;}}
+  if(on&&!initWorker(sim)){on=false;tissueEnabled=false;$('tissue').checked=false;}
+  if(!on&&sim.worker){sim.worker.terminate();sim.worker=null;sim.workerBusy=false;sim.workerReady=false;}
   if(sim.gpu){sim.visible.material=on?sim.gpu.mat:sim.gpu.original;sim.gpu.strength.value=on?1:0;}
-  updateTargets(sim);sim.tissue.reset();uploadTissue(sim);tissueElapsed=0;
+  resetWorker(sim);
 }
-
 function releaseAll(){for(const key of [...held.keys()])release(key);triggerStates.clear();reactors.clear();}
 async function install(buffer){
   const v=++loadVersion,decoded=decode(buffer),gl=await loader.parseAsync(buffer,'');if(v!==loadVersion)return;
@@ -202,11 +225,11 @@ async function install(buffer){
   // Keep the real SkinnedMesh and its bone hierarchy, do not replace it
   // with a CPU-deformed Mesh. GLB is identity mesh transform, Y-up.
   geo.dispose();mesh.frustumCulled=false;const visible=mesh;
-  const m={...makeWorld(bones,parents),arrays:a,bones,parents,dominant,visible,root:gl.scene,boneObjects:skeleton.bones,tissue:createTissue(a,rest),info:decoded.info,rest,gpu:null};
-  releaseAll();if(sim){anchor.remove(sim.root);sim.visible.geometry.dispose();sim.gpu?.mat.dispose();sim.world.free();}sim=m;anchor.add(m.root);
+  const m={...makeWorld(bones,parents),arrays:a,bones,parents,dominant,visible,root:gl.scene,boneObjects:skeleton.bones,tissue:{stats:{samples:0,contacts:0}},info:decoded.info,rest,gpu:null,worker:null,workerReady:false,workerBusy:false,epoch:0};
+  releaseAll();if(sim){anchor.remove(sim.root);sim.worker?.terminate();sim.visible.geometry.dispose();sim.gpu?.mat.dispose();sim.world.free();}sim=m;anchor.add(m.root);
   anchor.position.set(0,1.22,-2);anchor.rotation.set(0,0,0);anchor.scale.setScalar(1);grip.attachModel(V(.8,2,.37));
-  updateTargets(m);m.tissue.reset();updateFloor(m);draw(m);setTissue(tissueEnabled);paused=true;acc=0;tissueElapsed=0;$('run').textContent='Start / drop';$('run').disabled=false;$('reset').disabled=false;
-  status('Ready — GPU skinned 22-bone character; '+m.tissue.stats.samples+' low-rate tissue contact samples. Trigger to select a limb.');
+  updateFloor(m);draw(m);setTissue(tissueEnabled);paused=true;acc=0;tissueElapsed=0;$('run').textContent='Start / drop';$('run').disabled=false;$('reset').disabled=false;
+  status('Ready — GPU skinned 22-bone character; asynchronous tissue worker. Trigger to select a limb.');
 }
 
 function ray(c){c.updateWorldMatrix(true,false);return new THREE.Ray(c.getWorldPosition(V()),V(0,0,-1).applyQuaternion(c.getWorldQuaternion(Q())));}
@@ -274,16 +297,16 @@ function step(m){
   enforceLimits(m,h);capRigidVelocities(m);m.world.step();capRigidVelocities(m);
 }
 function stepTissue(m,dt){
-  if(!tissueEnabled)return;tissueElapsed+=dt;if(tissueElapsed<tissueInterval)return;
-  tissueElapsed=0;const start=performance.now();updateTargets(m);
+  if(!tissueEnabled||!m.workerReady)return;
+  tissueElapsed=Math.min(tissueElapsed+dt,tissueInterval);
+  if(tissueElapsed<tissueInterval||m.workerBusy)return;
+  tissueElapsed=0;
   const presses=[];for(const hand of held.values())if(hand.mode==='press'){const p=anchor.worldToLocal(hand.worldTarget.clone());presses.push({x:p.x,y:p.y,z:p.z,r:.065/Math.max(.5,scale.x)});}
-  m.tissue.step([gLocal.x,gLocal.y,gLocal.z],{x:floorLocal.normal.x,y:floorLocal.normal.y,z:floorLocal.normal.z,c:floorLocal.constant},presses);
-  uploadTissue(m);tissueMS=performance.now()-start;
-  // One tissue pass maximum per callback; slower devices drop tissue rate,
-  // never queue a backlog. Skeleton and trigger handling stay at render rate.
-  tissueInterval=Math.max(1/20,Math.min(1/5,tissueMS/1000*10));
+  const transforms=boneTransforms(m);
+  m.workerBusy=true;
+  m.worker.postMessage({type:'step',epoch:m.epoch,transforms,gravity:[gLocal.x,gLocal.y,gLocal.z],floor:{x:floorLocal.normal.x,y:floorLocal.normal.y,z:floorLocal.normal.z,c:floorLocal.constant},presses},[transforms.buffer]);
 }
-function reset(){if(!sim)return;releaseAll();grip.reset();sim.bodies.forEach((b,i)=>{b.setTranslation(sim.bones[i],true);b.setRotation(Q(),true);b.setLinvel(V(),true);b.setAngvel(V(),true);b.resetForces(true);b.resetTorques(true);});updateTargets(sim);sim.tissue.reset();draw(sim);paused=true;acc=0;$('run').textContent='Start / drop';status('Reset to original rest pose');}
+function reset(){if(!sim)return;releaseAll();grip.reset();sim.bodies.forEach((b,i)=>{b.setTranslation(sim.bones[i],true);b.setRotation(Q(),true);b.setLinvel(V(),true);b.setAngvel(V(),true);b.resetForces(true);b.resetTorques(true);});resetWorker(sim);draw(sim);paused=true;acc=0;$('run').textContent='Start / drop';status('Reset to original rest pose');}
 // XR session input-source polling and events are installed on session start.
 $('file').onchange=async e=>{try{const f=e.target.files?.[0];if(f)await install(await f.arrayBuffer());}catch(e){status('Model load failed: '+e.message);}};
 $('run').onclick=()=>{if(!sim)return;paused=!paused;if(paused)releaseAll();$('run').textContent=paused?'Resume / drop':'Pause';};
@@ -318,6 +341,6 @@ let last=0,startTime=0,frames=0;
 await renderer.setAnimationLoop((time,frame)=>{try{let dt=last?Math.min(.05,(time-last)/1000):0;last=time;if(!startTime)startTime=time;frames++;
   if(renderer.xr.isPresenting){grip.pollGrips();xrUpdate(dt,frame);pollTriggers(dt,frame);}else{orbit.update();if(held.has('mouse'))move('mouse',held.get('mouse').ray,dt);}
   grip.update(dt);if(sim&&!paused){const t=performance.now();acc=Math.min(acc+dt,RIGID_H*3);let count=0;while(acc>=RIGID_H&&count<3){step(sim);acc-=RIGID_H;count++;}syncSkeleton(sim);rigidMS=performance.now()-t;stepTissue(sim,dt);}else acc=0;
-  if(time-startTime>1000){const s=sim?.tissue.stats;$('stats').textContent=(frames*1000/(time-startTime)).toFixed(1)+' callback FPS | rigid '+rigidMS.toFixed(1)+' ms | tissue '+(tissueEnabled?tissueMS.toFixed(1)+' ms @ '+(1/tissueInterval).toFixed(0)+' Hz':'OFF')+' | render submit '+submitMS.toFixed(1)+' ms | holding '+[...held.values()].map(h=>restNames[h.bone]).join(', ')+(s?' | '+s.samples+' contact samples':'');frames=0;startTime=time;}
+  if(time-startTime>1000){const s=sim?.tissue.stats;$('stats').textContent=(frames*1000/(time-startTime)).toFixed(1)+' callback FPS | rigid '+rigidMS.toFixed(1)+' ms | tissue '+(tissueEnabled?tissueMS.toFixed(1)+' ms worker @ '+(1/tissueInterval).toFixed(0)+' Hz':'OFF')+' | render submit '+submitMS.toFixed(1)+' ms | holding '+[...held.values()].map(h=>restNames[h.bone]).join(', ')+(s?' | '+s.samples+' contact samples':'');frames=0;startTime=time;}
   const submitStart=performance.now();renderer.render(scene,camera);submitMS=performance.now()-submitStart;
 }catch(e){paused=true;releaseAll();$('run').textContent='Resume / drop';status('Simulation paused: '+e.message);console.error(e);}});

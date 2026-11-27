@@ -30,10 +30,12 @@ export function createTissue(a,restSkin){
     const cell=.034,margin=.029,map=new Map();let pairs=0,deep=0;
     for(let i=0;i<samples.length;i++){let k=i*3,x=s[k],y=s[k+1],z=s[k+2],ix=Math.floor(x/cell),iy=Math.floor(y/cell),iz=Math.floor(z/cell);
       for(let u=-1;u<=1;u++)for(let v=-1;v<=1;v++)for(let w=-1;w<=1;w++){const bucket=map.get(key(ix+u,iy+v,iz+w));if(!bucket)continue;
-        for(const j of bucket){const q=j*3;let rx=restS[k]-restS[q],ry=restS[k+1]-restS[q+1],rz=restS[k+2]-restS[q+2];if(rx*rx+ry*ry+rz*rz<.075**2)continue;
-          let dx=x-s[q],dy=y-s[q+1],dz=z-s[q+2],d=Math.hypot(dx,dy,dz);if(d>=margin)continue;
+        for(const j of bucket){const q=j*3;let rx=restS[k]-restS[q],ry=restS[k+1]-restS[q+1],rz=restS[k+2]-restS[q+2];const restDist=Math.hypot(rx,ry,rz);
+          if(a.exclusionOffsets){let lo=a.exclusionOffsets[i],hi=a.exclusionOffsets[i+1]-1,skip=false;while(lo<=hi){let mid=(lo+hi)>>>1,k=a.exclusionIndices[mid];if(k===j){skip=true;break;}if(k<j)lo=mid+1;else hi=mid-1;}if(skip)continue;}else if(restDist<.075)continue;
+          const separation=Math.min(margin,restDist*.85);if(separation<1e-5)continue;
+          let dx=x-s[q],dy=y-s[q+1],dz=z-s[q+2],d=Math.hypot(dx,dy,dz);if(d>=separation)continue;
           if(d<1e-7){d=Math.hypot(rx,ry,rz);dx=rx/d;dy=ry/d;dz=rz/d;d=0;}else{dx/=d;dy/=d;dz/=d;}
-          const dep=margin-d,step=Math.min(.012,dep*.47);
+          const dep=separation-d,step=Math.min(.012,dep*.47);
           let tx=(x-previousS[k])-(s[q]-previousS[q]),ty=(y-previousS[k+1])-(s[q+1]-previousS[q+1]),tz=(z-previousS[k+2])-(s[q+2]-previousS[q+2]),dot=tx*dx+ty*dy+tz*dz;
           tx-=dot*dx;ty-=dot*dy;tz-=dot*dz;let fr=Math.min(.5,step*.65/Math.max(1e-8,Math.hypot(tx,ty,tz)));
           const cx=dx*step-tx*fr,cy=dy*step-ty*fr,cz=dz*step-tz*fr;

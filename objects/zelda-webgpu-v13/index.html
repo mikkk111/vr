@@ -29,14 +29,17 @@
     .kbd{border:1px solid #ffffff40;border-radius:4px;font-size:10px;padding:1px 4px;color:#e6f7fc}
     #footer{position:fixed;z-index:2;bottom:15px;left:50%;transform:translateX(-50%);background:#091720bb;border:1px solid #ffffff18;padding:9px 14px;border-radius:11px;color:#c1d0d6;white-space:nowrap;font-size:12px;pointer-events:none}
     @media(max-width:600px){#panel{padding:14px}h1{font-size:21px}.sub{margin-bottom:9px}#footer{font-size:10px;bottom:8px}}
-  #panel{max-height:calc(100dvh - 35px);overflow:auto}#panel label:not(#filelabel){display:flex;justify-content:space-between;align-items:center;font-size:12px;margin:6px 0}#panel select{max-width:65%;background:#233442;color:#fff;padding:5px}#panel p{font-size:11px;color:#b6d6df;margin:6px 0}#panel a{color:#86e8d4}</style>
+  #panel{max-height:calc(100dvh - 35px);overflow:auto}#panel label:not(#filelabel){display:flex;justify-content:space-between;align-items:center;font-size:12px;margin:6px 0}#panel select{max-width:65%;background:#233442;color:#fff;padding:5px}#panel p{font-size:11px;color:#b6d6df;margin:6px 0}#panel a{color:#86e8d4}
+.project-nav{margin:0 0 14px;display:grid;gap:8px}.project-nav a{display:block;padding:10px 12px;border:1px solid #86e8d4;border-radius:9px;color:#c2fff1;text-decoration:none;font-size:14px;font-weight:750}.project-name{display:block;font-size:24px;font-weight:750;line-height:1.2}.build-version{display:block;color:#86e8d4;font-size:clamp(54px,9vw,76px);font-weight:900;line-height:1.05;letter-spacing:-.055em;margin:4px 0 12px;white-space:nowrap}
+</style>
   <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js","three/webgpu":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.webgpu.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"}}</script>
 </head>
 <body>
   <div id="scene"></div>
   <section id="panel">
+    <nav class="project-nav" aria-label="Project navigation"><a href="../../">← Main Menu — All Projects</a><a href="../zelda-gpu-v14-2/?v=14.2">Open latest Zelda GPU V14.2</a></nav>
     <div class="eyebrow">Meta Quest 3 · Experimental A/B renderer</div>
-    <h1>Zelda WebGPU <span style="color:#86e8d4">V13</span></h1>
+    <h1><span class="project-name">Zelda WebGPU</span><strong class="build-version">V13</strong></h1>
     <div class="versionline"><strong>Shared Zelda v13 controls</strong> · Experiment 1.1 · Native GPU safe mode · Three.js 0.186.1</div>
     <div class="sub">Compare identical human geometry and materials using native WebGPU and WebGL 2. No virtual floor, grid or gravity.</div>
     <label>Renderer <select id="rendererSelect"><option value="webgpu">Native WebGPU</option><option value="webgl">WebGL 2</option></select></label>

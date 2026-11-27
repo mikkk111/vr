@@ -3,7 +3,7 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import RAPIER from 'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.21.0/dist/rapier.mjs';
 import {createGrabPhysics} from '../../shared/zelda-v13/physics-grab.js?v=template-1';
-import {createTissue} from './tissue.js?v=1.0';
+import {createTissue} from './tissue.js?v=1.0-contact2';
 const $=id=>document.getElementById(id),status=s=>{$('status').textContent=s;console.log(s)};
 const V=(x=0,y=0,z=0)=>new THREE.Vector3(x,y,z),Q=()=>new THREE.Quaternion(),R=THREE.MathUtils.degToRad,UP=V(0,1,0);
 const qOf=b=>{const r=b.rotation();return Q().set(r.x,r.y,r.z,r.w);},pOf=b=>{const p=b.translation();return V(p.x,p.y,p.z);};
@@ -41,6 +41,7 @@ function decode(buffer){
   if(!info||info.version!==1)throw Error('Use the prepared character-softbody-v1.glb with the embedded tissue cage.');
   const base=28+len,binLen=dv.getUint32(20+len,true),arrays={};
   for(const [key,d] of Object.entries(info.arrays)){const C=d.type==='<f4'?Float32Array:d.type==='<u4'?Uint32Array:d.type==='<u2'?Uint16Array:null;if(!C||d.byteOffset<0||d.byteOffset+d.count*C.BYTES_PER_ELEMENT>binLen)throw Error('Invalid tissue array '+key);arrays[key]=new C(buffer,base+d.byteOffset,d.count);}
+  if(!arrays.exclusionOffsets||!arrays.sampleNormals)throw Error('Prepared GLB is older than the topology-aware contact build');
   return {arrays,info,json:j};
 }
 function makeWorld(bones,parents){

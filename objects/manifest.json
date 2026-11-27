@@ -520,6 +520,16 @@
       "version": "1.9.1",
       "previousVersion": "human-ragdoll-v1-8",
       "status": "experimental"
+    },
+    {
+      "id": "human-ragdoll-v2",
+      "title": "Human Ragdoll V2.0 — Physics Baseline",
+      "url": "./objects/human-ragdoll-v2/?v=2.0",
+      "modelPath": "./objects/human-softbody-v1-0/assets/character-softbody-v1.glb",
+      "description": "User-approved V1.9.1 promoted unchanged to V2.0. Native physics regression passed. Settings and source hashes recorded.",
+      "version": "2.0",
+      "previousVersion": "human-ragdoll-v1-9",
+      "status": "baseline"
     }
   ]
 }

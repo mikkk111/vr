@@ -1,0 +1,40 @@
+{
+  "status": "passed",
+  "tests": [
+    {
+      "name": "actual mesh fit",
+      "dimensions": [
+        2,
+        0.7970033400452049,
+        0.9452795231953035
+      ],
+      "parts": 5,
+      "top": 0.7970033400452049,
+      "triangles": 600
+    },
+    {
+      "name": "table falls while character held",
+      "tableBottom": -1.4372130361092061e-7,
+      "characterDrift": 0
+    },
+    {
+      "name": "character release gravity",
+      "movement": 1.157794155695146
+    },
+    {
+      "name": "table resize and release",
+      "scale": 0.75,
+      "bottom": -2.4944490941957227e-7
+    },
+    {
+      "name": "character dropped onto table",
+      "top": 0.7970033400452049,
+      "minPelvis": 1.148447617212525,
+      "maxPelvis": 1.493254735389939,
+      "supportedFrames": 184,
+      "tableBottom": -0.0010507438424746107
+    }
+  ],
+  "source": "native Jolt WASM 1.1.2 and original compact table geometry",
+  "error": null
+}

@@ -1,0 +1,122 @@
+{
+  "version": "2.0",
+  "baseline": "1.9.1",
+  "status": "user-approved baseline",
+  "sourceCommit": "6141885834541c70a495ef131e2b83758443aa47",
+  "engines": {
+    "three": "0.187.0",
+    "jolt": "1.1.2",
+    "rapier": "0.21.0",
+    "renderer": "native WebGPU",
+    "referenceSpace": "local-floor",
+    "framebufferScale": 0.65
+  },
+  "physics": {
+    "gravity": [
+      0,
+      -9.81,
+      0
+    ],
+    "fixedStepSeconds": 0.008333333333333333,
+    "maxSubsteps": 6,
+    "velocityIterations": 12,
+    "positionIterations": 4,
+    "penetrationSlop": 0.001,
+    "characterMassKg": 60,
+    "rigidBodies": 15,
+    "anatomicalJoints": 14,
+    "tableMassKg": 32,
+    "gravityOnEntry": true,
+    "gravityOnRelease": true,
+    "independentTableSimulation": true
+  },
+  "spawn": {
+    "character": {
+      "forward": 1.35,
+      "right": -0.48,
+      "height": 1.18
+    },
+    "table": {
+      "forward": 1.4,
+      "right": 0.68,
+      "height": 0.015
+    }
+  },
+  "controls": {
+    "scaleMin": 0.1,
+    "scaleMax": 3.5,
+    "rotationSnapDegrees": 30,
+    "selectByCurrentPose": true,
+    "independentTableGrip": true
+  },
+  "motionDefaults": {
+    "chest": 1.25,
+    "hips": 1.15,
+    "chestFirm": 0.55,
+    "hipFirm": 0.6,
+    "chestDamp": 0.34,
+    "hipDamp": 0.38,
+    "sag": 1.15,
+    "contact": 1.4,
+    "heft": 1,
+    "bounce": 0.12
+  },
+  "table": {
+    "bytes": 161344,
+    "originalBytes": 7418304,
+    "sha256": "678735f218127b17ef4af83370d5c4968b2955c911729741539ea0f0af136de2",
+    "triangles": 600,
+    "images": 2,
+    "maxTexturePixels": 512,
+    "license": "CC0-1.0",
+    "widthMetres": 2
+  },
+  "dependencies": [
+    {
+      "path": "objects/human-ragdoll-v1-9/app.js",
+      "gitBlob": "8bba47f23ae1492ca0f69cde45340f752b4e7be5"
+    },
+    {
+      "path": "objects/human-ragdoll-v1-9/ragdoll.js",
+      "gitBlob": "c9c2db40d435fe33c528cac8b3c29101340caa52"
+    },
+    {
+      "path": "objects/human-ragdoll-v1-9/table.js",
+      "gitBlob": "47f0e1fc5f4ab6f1920bc552292bd74b1f07bcc5"
+    },
+    {
+      "path": "objects/human-ragdoll-v1-9/test-native.mjs",
+      "gitBlob": "f9b3bc482c89b3912de5002866ee2d800a54a998"
+    },
+    {
+      "path": "objects/human-ragdoll-v1-9/native-test-result.json",
+      "gitBlob": "890d49e1ba53ac065e9ec4a382ce3c2bc3049e44"
+    },
+    {
+      "path": "objects/human-ragdoll-v1-5/secondary.js",
+      "gitBlob": "59e1c2f55d02455fe165c1b4631976735be0a315"
+    },
+    {
+      "path": "objects/human-ragdoll-v1-5/fit.json",
+      "gitBlob": "c73711f7585fa3868d73c59fabf4e4859b550268"
+    },
+    {
+      "path": "shared/zelda-v13/physics-grab-furniture.js",
+      "gitBlob": "920eb54ab08dc70a01e6c1e51ca4ef2a1f5ee5cf"
+    },
+    {
+      "path": "objects/human-softbody-v1-0/assets/character-softbody-v1.glb",
+      "gitBlob": "cbc832abf510b7494d13d30d90756ab3bfdea3c3"
+    },
+    {
+      "path": "objects/human-ragdoll-v1-8/assets/table-lite.json",
+      "gitBlob": "1395c2f003e7bcea7c4ec06e7605cdde72194468"
+    }
+  ],
+  "validation": {
+    "nativeReport": "native-test-result.json",
+    "nativeStatus": "passed",
+    "headset": "User reported V1.9.1 working well; no independent hardware test",
+    "scope": "Exact approved source snapshot; no solver changes"
+  }
+}

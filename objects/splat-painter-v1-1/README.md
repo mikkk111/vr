@@ -1,0 +1,3 @@
+# Splat Painter V1.1 — Quest Performance
+
+Original room and pose, separate view-only performance version. Spark 2.4.0 hierarchical LOD built on first load in a worker, base data discarded (nonLod:false). Safe default: 80k target, .42 framebuffer scale, min projected radius 1.2, no SH, 65 ms minimum sort interval. Balanced 150k/.52; Detail 250k/.62. Targets are approximate; render callback rate is not a hardware benchmark. Original painting functionality remains in V1.0 because index-based RGBA overrides are incompatible with Spark's LOD path. No per-frame forced mesh updates or painting buffers. External SPZ remains unchanged, so initial transfer is not compressed further. Physical Quest testing pending.

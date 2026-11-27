@@ -394,6 +394,20 @@
       "sourceCommit": "f94964a712e217b7121ae642299fdac6041e5a12",
       "version": "1.0",
       "status": "experimental"
+    },
+    {
+      "id": "splat-painter-v1-1",
+      "title": "Splat Painter V1.1 — Quest Performance",
+      "url": "./objects/splat-painter-v1-1/?v=1.1&quality=safe",
+      "modelPath": "https://storage.googleapis.com/forge-dev-public/marble-scenes/greyscale-room.spz",
+      "description": "Original bedroom with native hierarchical LOD, 80k/150k/250k splat targets, reduced stereo resolution and no painting workload; full-room VR and miniature passthrough. V1.0 remains available for painting. Quest testing pending.",
+      "sourceUrl": "https://sparkjs.dev/examples/#splat-painter",
+      "author": "World Labs Technologies",
+      "license": "MIT (code)",
+      "sourceCommit": "f94964a712e217b7121ae642299fdac6041e5a12",
+      "version": "1.1",
+      "previousVersion": "splat-painter-v1-0",
+      "status": "experimental"
     }
   ]
 }

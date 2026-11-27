@@ -381,6 +381,19 @@
       "version": "1.2",
       "previousVersion": "cocoon-gpu-v1-1",
       "status": "experimental"
+    },
+    {
+      "id": "splat-painter-v1-0",
+      "title": "Splat Painter V1.0 — Gaussian Splats in VR",
+      "url": "./objects/splat-painter-v1-0/?v=1.0",
+      "modelPath": "https://storage.googleapis.com/forge-dev-public/marble-scenes/greyscale-room.spz",
+      "description": "Original World Labs grayscale bedroom Gaussian splat, Spark 2.4 WebGL stereo, controller painting and restore, full-room VR and miniature passthrough with shared Zelda v13 grips. Experimental; Quest testing pending.",
+      "author": "World Labs Technologies",
+      "license": "MIT (code; original asset hosted upstream)",
+      "sourceUrl": "https://sparkjs.dev/examples/#splat-painter",
+      "sourceCommit": "f94964a712e217b7121ae642299fdac6041e5a12",
+      "version": "1.0",
+      "status": "experimental"
     }
   ]
 }

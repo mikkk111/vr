@@ -1,0 +1,3 @@
+# Splat Painter V1.0
+
+Port of the original World Labs Spark example at f94964a712e217b7121ae642299fdac6041e5a12. Original asset URL retained, no mesh or texture substitution. Spark 2.4.0 / Three.js r180. Full-room VR uses local reference space at the original camera origin. Passthrough uses the same splats in a 1.5 m maximum-dimension miniature, shared Zelda v13 grip engine. Right trigger paints; left trigger restores; A cycles colour, B toggles erase. GPU colour-buffer baking throttled to ~9 Hz. Desktop UI retained. Original MIT license included; asset remains externally hosted, separate asset terms not asserted. Physical Quest testing pending.

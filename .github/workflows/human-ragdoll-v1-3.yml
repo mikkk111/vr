@@ -1,0 +1,49 @@
+name: Human Ragdoll V1.3 native regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'objects/human-ragdoll-v1-3/ragdoll.js'
+      - 'objects/human-ragdoll-v1-3/fit.json'
+      - 'objects/human-ragdoll-v1-3/test.mjs'
+      - '.github/workflows/human-ragdoll-v1-3.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: human-ragdoll-v1-3
+  cancel-in-progress: true
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: objects/human-ragdoll-v1-3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned WASM runtime and Three
+        run: npm install --no-save --package-lock=false jolt-physics@1.1.2 three@0.187.0
+      - name: Native test
+        id: test
+        continue-on-error: true
+        run: node test.mjs
+      - name: Publish test results
+        if: always()
+        run: |
+          if [ -f test-results.json ]; then
+            git add test-results.json
+            if ! git diff --cached --quiet; then
+              git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Record V1.3 native Jolt regression'
+              git pull --rebase origin main
+              git push origin HEAD:main
+            fi
+          fi
+      - name: Fail if test failed
+        if: steps.test.outcome != 'success'
+        run: exit 1

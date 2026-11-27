@@ -13,7 +13,7 @@ Original GLB binary data and original textured surface retained. Extra arrays in
 Testing: original GLB structural inspection, cage orientation/embedding checks, JS source parse, synthetic tetrahedron volume/floor test. Full-character dynamics, performance, browser dependency and headset tests remain outstanding. No promise of penetration-free motion.
 Research: Macklin et al. XPBD (2016), Macklin and Müller Stable Neo-Hookean (2021, future material model), Chen et al. OGC (2025, future full-surface collision solver). https://graphics.cs.utah.edu/research/projects/ogc/
 
-Asset publication pending: place prepared GLB at assets/character-softbody-v1.glb. Local file picker works with the prepared GLB; the original raw GLB has no tissue cage. Automatic loading is attempted when the hosted file exists.
+Asset published: `assets/character-softbody-v1.glb` reconstructed from six verified lossless XZ chunks in commit `49e7b6f05e7db0ca441613bef6d09cd2bee4399a`. Exact SHA-256 and byte count verified by reconstruction; final Git blob `cbc832abf510b7494d13d30d90756ab3bfdea3c3` matches the local prepared GLB. Automatic loading is enabled. Temporary repository transfer chunks removed. Local file picker remains available; the raw original has no tissue cage.
 
 ## Synthetic solver regression tests
 - 125-node block: 31.04 mm indentation, minimum sampled volume ratio 99.06%, no inversion; near-zero residual after release (tested before inward offsets; external pressure code unchanged).

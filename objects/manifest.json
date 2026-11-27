@@ -118,6 +118,19 @@
       "license": "CC BY 3.0",
       "sourceUrl": "https://threejs.org/examples/webgl_materials_normalmap.html",
       "status": "experimental"
+    },
+    {
+      "id": "zelda-gpu-v14-1",
+      "title": "Zelda GPU V14.1 — Human Rendering Experiment",
+      "url": "./objects/zelda-gpu-v14-1/?v=14.1",
+      "modelPath": "https://threejs.org/examples/models/gltf/LeePerrySmith/LeePerrySmith.glb",
+      "description": "Versioned native WebGPU stability build with reduced GPU memory budget, diagnostic cube, persistent crash logging and WebGL 2 comparison. Shared Zelda v13 controller engine unchanged. Quest testing pending.",
+      "author": "Lee Perry-Smith / Infinite-Realities",
+      "license": "CC BY 3.0",
+      "sourceUrl": "https://threejs.org/examples/webgl_materials_normalmap.html",
+      "status": "experimental",
+      "version": "14.1",
+      "previousVersion": "zelda-webgpu-v13"
     }
   ]
 }

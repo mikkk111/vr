@@ -369,6 +369,18 @@
       "version": "1.1",
       "previousVersion": "cocoon-gpu-v1-0",
       "status": "experimental"
+    },
+    {
+      "id": "cocoon-lite-v1-2",
+      "title": "Cocoon Lite V1.2 — Interactive Silk",
+      "url": "./objects/cocoon-lite-v1-2/?v=1.2",
+      "modelPath": null,
+      "description": "WebGL 2 recovery version: one cocoon with 12,860 original silk curves, baked surface, fixed studio lighting and shared grips. No neural compute or postprocessing. Quest testing pending.",
+      "sourceUrl": "https://akella.github.io/codevember-2026/20/",
+      "sourceCommit": "902fcb1f492dac4138d72aad16dd85af71ceeda4",
+      "version": "1.2",
+      "previousVersion": "cocoon-gpu-v1-1",
+      "status": "experimental"
     }
   ]
 }

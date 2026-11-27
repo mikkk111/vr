@@ -241,6 +241,16 @@
       "status": "experimental",
       "hardwareVerification": null,
       "previousVersion": "discobolus-gpu-v1-0"
+    },
+    {
+      "id": "light-debris-v1-0",
+      "title": "Light & Debris GPU V1.0 — VR & Passthrough",
+      "url": "./objects/light-debris-v1-0/?v=1.0",
+      "modelPath": null,
+      "description": "Independent native WebGPU light-driven metallic debris simulation with 8,000–150,000 fragments, dual controller beams, dark VR and mixed reality; shared Zelda v13 grips. Quest testing pending.",
+      "sourceUrl": "https://nkondo-ft.github.io/light-and-debris/",
+      "version": "1.0",
+      "status": "experimental"
     }
   ]
 }

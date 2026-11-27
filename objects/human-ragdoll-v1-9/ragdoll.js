@@ -37,7 +37,7 @@ export function createRagdoll(J,fit){
   ps.mNumVelocitySteps=12;ps.mNumPositionSteps=4;ps.mPenetrationSlop=.001;ps.mSpeculativeContactDistance=.012;ps.mLinearCastThreshold=.25;ps.mLinearCastMaxPenetration=.10;
   world.SetPhysicsSettings(ps); // Borrowed const reference; never destroy.
   const v=vec=>new J.Vec3(vec.x,vec.y,vec.z),rv=vec=>new J.RVec3(vec.x,vec.y,vec.z),jq=q=>new J.Quat(q.x,q.y,q.z,q.w);
-  const posTmp=new J.RVec3(0,0,0),rotTmp=new J.Quat(0,0,0,1),forceTmp=new J.Vec3(0,0,0),pointTmp=new J.RVec3(0,0,0),zero=new J.Vec3(0,0,0);
+  const posTmp=new J.RVec3(0,0,0),rotTmp=new J.Quat(0,0,0,1),forceTmp=new J.Vec3(0,0,0),pointTmp=new J.RVec3(0,0,0),zero=new J.Vec3(0,0,0),linearTmp=new J.Vec3(0,0,0),angularTmp=new J.Vec3(0,0,0);
   const rest=fit.rest.map(a=>V(...a)),N=fit.shapes.length,filter=new J.GroupFilterTable(N);filter.AddRef();
   for(let i=0;i<N;i++)if(fit.shapes[i].parent>=0)filter.DisableCollision(i,fit.shapes[i].parent);
   const bodies=[],constraints=[],positions=Array.from({length:N},()=>V()),rotations=Array.from({length:N},()=>Q()),owned=[];
@@ -111,7 +111,7 @@ export function createRagdoll(J,fit){
   function reset(){for(let i=0;i<N;i++){const p=rest[fit.shapes[i].root];pointTmp.Set(p.x,p.y,p.z);rotTmp.Set(0,0,0,1);const id=bodies[i].GetID();bi.SetPositionAndRotation(id,pointTmp,rotTmp,J.EActivation_Activate);bi.SetLinearAndAngularVelocity(id,zero,zero);}sync();}
   function grab(index,offset,target,gravity,dt,heft=1,handCount=1){
     const point=offset.clone().applyQuaternion(rotations[index]).add(positions[index]),id=bodies[index].GetID();
-    pointTmp.Set(point.x,point.y,point.z);const vel=bi.GetPointVelocity(id,pointTmp),velocity=V(vel.GetX(),vel.GetY(),vel.GetZ());J.destroy(vel);
+    pointTmp.Set(point.x,point.y,point.z);const vel=bi.GetPointVelocity(id,pointTmp),velocity=V(vel.GetX(),vel.GetY(),vel.GetZ()); // borrowed WASM value; never destroy
     const {local,drag}=pullForces(target.clone().sub(point),velocity,gravity,fit.shapes[index].mass,heft,handCount);
     local.multiplyScalar(dt);forceTmp.Set(local.x,local.y,local.z);bi.AddImpulse(id,forceTmp,pointTmp);
     // Distribute the whole-body pulling load at the two central COMs.
@@ -200,9 +200,9 @@ export function createRagdoll(J,fit){
     const id=table.body.GetID();bi.GetPositionAndRotation(id,posTmp,rotTmp);
     table.position.copy(anchor.localToWorld(V(posTmp.GetX(),posTmp.GetY(),posTmp.GetZ())));
     const aq=anchor.getWorldQuaternion(Q());table.rotation.copy(aq).multiply(Q().set(rotTmp.GetX(),rotTmp.GetY(),rotTmp.GetZ(),rotTmp.GetW()));
-    const lv=bi.GetLinearVelocity(id),av=bi.GetAngularVelocity(id);
-    table.velocity.set(lv.GetX(),lv.GetY(),lv.GetZ()).multiplyScalar(table.scale).applyQuaternion(aq);
-    table.angular.set(av.GetX(),av.GetY(),av.GetZ()).applyQuaternion(aq);J.destroy(lv);J.destroy(av);
+    bi.GetLinearAndAngularVelocity(id,linearTmp,angularTmp);
+    table.velocity.set(linearTmp.GetX(),linearTmp.GetY(),linearTmp.GetZ()).multiplyScalar(table.scale).applyQuaternion(aq);
+    table.angular.set(angularTmp.GetX(),angularTmp.GetY(),angularTmp.GetZ()).applyQuaternion(aq);
   }
   function ensureTableFloor(anchor){
     if(!table||table.held)return 0;
@@ -220,6 +220,6 @@ export function createRagdoll(J,fit){
   }
   function removeTable(){if(!table)return;const id=table.body.GetID();bi.RemoveBody(id);bi.DestroyBody(id);table.shape.Release();table.base.Release();table=null;}
   function step(dt){jolt.Step(dt,1);sync();}
-  function dispose(){removeTable();for(const c of constraints)world.RemoveConstraint(c);for(const b of [...bodies,floor]){const id=b.GetID();bi.RemoveBody(id);bi.DestroyBody(id);}for(const shape of owned)shape.Release();filter.Release();for(const x of [posTmp,rotTmp,forceTmp,pointTmp,zero])J.destroy(x);J.destroy(jolt);}
+  function dispose(){removeTable();for(const c of constraints)world.RemoveConstraint(c);for(const b of [...bodies,floor]){const id=b.GetID();bi.RemoveBody(id);bi.DestroyBody(id);}for(const shape of owned)shape.Release();filter.Release();for(const x of [posTmp,rotTmp,forceTmp,pointTmp,zero,linearTmp,angularTmp])J.destroy(x);J.destroy(jolt);}
   sync();return {bodies,positions,rotations,rest,owner,fit,step,pick,pickNear,poseBounds,rebase,grab,setCharacterHeld,installTable,syncTableFrame,setTableHeld,setTablePose,captureTable,ensureTableFloor,tableDrop,get table(){return table;},setFloor,setBounce,wake,reset,dispose,world,bi};
 }
